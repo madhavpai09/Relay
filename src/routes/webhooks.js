@@ -1,6 +1,11 @@
 const crypto = require('crypto');
 const express = require('express');
-const { createJob } = require('../services/jobs');
+const { createJob, getJobByDeliveryId } = require('../services/jobs');
+const { shouldCreateJob } = require('../services/eventDecider');
+const { buildGithubJobContext } = require('../services/githubContext');
+const { getRepositoryByFullName } = require('../services/repositories');
+const { scheduleJob } = require('../services/scheduler');
+
 
 const router = express.Router();
 
@@ -69,6 +74,17 @@ router.post('/', (req, res) => {
 
     try {
         payload = JSON.parse(rawBody.toString('utf8'));
+
+        const decision = shouldCreateJob(event, payload);
+        if (!decision.shouldCreate) {
+            return res.status(202).json({
+                status: 'ignored',
+                event,
+                deliveryId,
+                repository: payload.repository?.full_name || null,
+                reason: decision.reason,
+            });
+        }
     } catch (error) {
         return res.status(400).json({
             status: 'rejected',
@@ -81,20 +97,56 @@ router.post('/', (req, res) => {
     console.log('Delivery ID:', deliveryId);
     console.log('Repository:', payload.repository?.full_name);
 
+    const existingJob = getJobByDeliveryId(deliveryId);
+    const githubContext = buildGithubJobContext(event, payload);
+    const registeredRepository = getRepositoryByFullName(githubContext.repository);
+    const workspacePath = registeredRepository?.localPath || process.cwd();
+    const pipelineFile = registeredRepository?.pipelineFile || '.relay.yml';
+
+    if (existingJob) {
+      return res.status(200).json({
+        status: 'duplicate',
+        event,
+        deliveryId,
+        repository: githubContext.repository,
+        jobId: existingJob.id,
+        jobStatus: existingJob.status,
+        workspacePath: existingJob.workspacePath || workspacePath,
+        reason: 'This webhook delivery was already processed',
+      });
+    }
+
     const job = createJob({
         event,
         deliveryId,
-        repository: payload.repository?.full_name || null,
+        repository: githubContext.repository,
+        triggerType: githubContext.triggerType,
+        ref: githubContext.ref,
+        commitSha: githubContext.commitSha,
+        pullRequestNumber: githubContext.pullRequestNumber,
+        action: githubContext.action,
+        baseRef: githubContext.baseRef,
+        headRef: githubContext.headRef,
+        workspacePath,
+        pipelineFile,
         payload,
     });
+
+    scheduleJob(job.id);
 
     return res.status(202).json({
         status: 'accepted',
         event,
         deliveryId,
-        repository: payload.repository?.full_name || null,
+        repository: job.repository,
         jobId: job.id,
         jobStatus: job.status,
+        triggerType: job.triggerType,
+        ref: job.ref,
+        commitSha: job.commitSha,
+        pullRequestNumber: job.pullRequestNumber,
+        workspacePath: job.workspacePath,
+        queueStatus: 'scheduled',
     });
 
 });
