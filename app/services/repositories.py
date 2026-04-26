@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import uuid
 
-from .config import DEFAULT_PIPELINE_FILE
-from .database import db_lock, fetch_all, fetch_one, transaction
+from ..config import DEFAULT_PIPELINE_FILE
+from ..database import db_lock, fetch_all, fetch_one, transaction
 from .pipeline import load_pipeline_definition
 
 
@@ -45,65 +45,47 @@ def _validate_local_repository_path(local_path: str) -> dict:
     return {"ok": True, "absolute_path": str(absolute_path)}
 
 
+_REPO_COLUMNS = "id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at"
+
+
 def list_repositories() -> list[dict]:
     return [
         _map_repository(row)
-        for row in fetch_all(
-            """
-            SELECT id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at
-            FROM repositories
-            ORDER BY full_name ASC
-            """
-        )
+        for row in fetch_all(f"SELECT {_REPO_COLUMNS} FROM repositories ORDER BY full_name ASC")
     ]
 
 
 def get_repository_by_id(repo_id: str) -> dict | None:
     return _map_repository(
-        fetch_one(
-            """
-            SELECT id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at
-            FROM repositories
-            WHERE id = ?
-            """,
-            (repo_id,),
-        )
+        fetch_one(f"SELECT {_REPO_COLUMNS} FROM repositories WHERE id = ?", (repo_id,))
     )
 
 
 def get_repository_by_full_name(full_name: str | None) -> dict | None:
     if not full_name:
         return None
-
     return _map_repository(
-        fetch_one(
-            """
-            SELECT id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at
-            FROM repositories
-            WHERE full_name = ?
-            """,
-            (full_name,),
-        )
+        fetch_one(f"SELECT {_REPO_COLUMNS} FROM repositories WHERE full_name = ?", (full_name,))
     )
 
 
 def create_or_update_repository(
     *,
-    full_name: str,
+    fullName: str,
     provider: str = "github",
-    local_path: str,
-    default_branch: str = "main",
-    pipeline_file: str = DEFAULT_PIPELINE_FILE,
+    localPath: str,
+    defaultBranch: str = "main",
+    pipelineFile: str = DEFAULT_PIPELINE_FILE,
     active: bool = True,
 ) -> dict:
-    if not full_name:
+    if not fullName:
         return {"ok": False, "reason": "fullName is required"}
 
-    path_validation = _validate_local_repository_path(local_path)
+    path_validation = _validate_local_repository_path(localPath)
     if not path_validation["ok"]:
         return path_validation
 
-    existing = get_repository_by_full_name(full_name)
+    existing = get_repository_by_full_name(fullName)
     now = _now()
     repo_id = existing["id"] if existing else str(uuid.uuid4())
     created_at = existing["createdAt"] if existing else now
@@ -124,20 +106,16 @@ def create_or_update_repository(
                 updated_at = excluded.updated_at
             """,
             (
-                repo_id,
-                full_name,
-                provider,
+                repo_id, fullName, provider,
                 path_validation["absolute_path"],
-                default_branch,
-                pipeline_file,
+                defaultBranch, pipelineFile,
                 1 if active else 0,
-                created_at,
-                now,
+                created_at, now,
             ),
         )
         conn.commit()
 
-    return {"ok": True, "repository": get_repository_by_full_name(full_name)}
+    return {"ok": True, "repository": get_repository_by_full_name(fullName)}
 
 
 def validate_repository(repo_id: str) -> dict:

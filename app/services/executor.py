@@ -16,7 +16,7 @@ def _stream_output(job_id: str, pipe, level: str) -> None:
 
 
 def run_job(job_id: str) -> dict:
-    running_result = update_job_status(job_id, "running")
+    running_result = update_job_status(job_id, "processing")
     if not running_result["ok"]:
         return running_result
 
@@ -66,5 +66,5 @@ def run_job(job_id: str) -> dict:
 
         add_job_log(job_id, level="info", message=f'Step "{step["name"]}" completed successfully')
 
-    add_job_log(job_id, level="info", message="Executor finished all pipeline steps")
-    return update_job_status(job_id, "passed")
+    add_job_log(job_id, level="info", message="All pipeline steps completed")
+    return update_job_status(job_id, "processed")

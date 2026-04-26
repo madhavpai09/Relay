@@ -30,9 +30,9 @@ class Scheduler:
             self._thread.join(timeout=1.0)
 
     def _recover_queue_on_startup(self) -> None:
-        running_jobs = [job for job in list_jobs() if job["status"] == "running"]
-        for job in running_jobs:
-            add_job_log(job["id"], level="error", message="Master restarted while this job was running")
+        processing_jobs = [job for job in list_jobs() if job["status"] == "processing"]
+        for job in processing_jobs:
+            add_job_log(job["id"], level="error", message="Server restarted while this job was processing")
             update_job_status(job["id"], "failed")
 
     def _run_loop(self) -> None:
@@ -59,22 +59,23 @@ class Scheduler:
         job = get_job_by_id(job_id)
         if not job:
             return {"ok": False, "reason": "Job not found"}
-        if job["status"] != "queued":
+        if job["status"] != "received":
             return {
                 "ok": False,
-                "reason": f'Job must be queued before scheduling, current status is {job["status"]}',
+                "reason": f'Job must be in "received" status before scheduling, current status is "{job["status"]}"',
             }
 
+        update_job_status(job_id, "in_queue")
         self._wake_event.set()
-        return {"ok": True, "job": job}
+        return {"ok": True, "job": get_job_by_id(job_id)}
 
     def get_queue_snapshot(self) -> dict:
         jobs = list_jobs()
         queued_jobs = sorted(
-            [job for job in jobs if job["status"] == "queued"],
+            [job for job in jobs if job["status"] == "in_queue"],
             key=lambda job: job["createdAt"],
         )
-        running_jobs = [job for job in jobs if job["status"] == "running"]
+        processing_jobs = [job for job in jobs if job["status"] == "processing"]
 
         return {
             "currentJobId": self.current_job_id,
@@ -88,14 +89,14 @@ class Scheduler:
                 }
                 for job in queued_jobs
             ],
-            "runningJobs": [
+            "processingJobs": [
                 {
                     "id": job["id"],
                     "repository": job["repository"],
                     "triggerType": job["triggerType"],
                     "startedAt": job["startedAt"],
                 }
-                for job in running_jobs
+                for job in processing_jobs
             ],
         }
 

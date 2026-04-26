@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import DEFAULT_PIPELINE_FILE
+from ..config import DEFAULT_PIPELINE_FILE
 
 
 def _apply_key_value(target: dict, line: str) -> None:
