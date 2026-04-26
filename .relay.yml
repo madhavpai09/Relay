@@ -1,7 +1,0 @@
-steps:
-  - name: install
-    command: npm install
-  - name: test
-    command: node -e "console.log('Simulated test step')"
-  - name: package
-    command: node -e "console.log('Simulated packaging step')"

@@ -1,22 +1,46 @@
 # Relay Master
 
-Relay Master is a lightweight Jenkins-master-style CI controller built with Node.js and Express.
+Relay Master is now a FastAPI-based Jenkins-master-style CI controller.
+
+## Run
+
+```bash
+uvicorn main:app --reload --port 8000
+```
 
 ## What it does
 
 - receives GitHub webhooks
 - verifies webhook signatures
-- filters which events should trigger CI
-- deduplicates webhook deliveries
-- creates persistent jobs in SQLite
-- stores per-job logs
-- runs a single local execution queue
-- loads pipeline steps from `.relay.yml`
-- executes pipeline commands in the registered repository workspace
+- filters CI-relevant events
+- deduplicates deliveries
+- persists jobs and logs in SQLite
+- registers local repositories
+- validates `.relay.yml`
+- schedules queued jobs automatically
+- executes pipeline commands in the registered repo workspace
+
+## Main endpoints
+
+- `GET /health`
+- `GET /repositories`
+- `POST /repositories`
+- `GET /repositories/{id}`
+- `POST /repositories/{id}/validate`
+- `DELETE /repositories/{id}`
+- `POST /webhooks/github`
+- `GET /jobs`
+- `GET /jobs/{id}`
+- `GET /jobs/{id}/logs`
+- `PATCH /jobs/{id}/status`
+- `POST /jobs/{id}/schedule`
+- `POST /jobs/{id}/run`
+- `POST /jobs/{id}/logs`
+- `GET /queue`
 
 ## Pipeline file
 
-Each registered repository should contain a `.relay.yml` file like this:
+Each registered repository should contain a `.relay.yml` file like:
 
 ```yaml
 steps:
@@ -28,36 +52,11 @@ steps:
     command: npm run build
 ```
 
-## Main endpoints
+## Data
 
-- `GET /health`
-- `GET /repositories`
-- `POST /repositories`
-- `POST /repositories/:id/validate`
-- `DELETE /repositories/:id`
-- `POST /webhooks/github`
-- `GET /jobs`
-- `GET /jobs/:id`
-- `GET /jobs/:id/logs`
-- `GET /queue`
+- SQLite database: `data/relay.sqlite`
+- Legacy migration source: `data/jobs.json`
 
-## Runtime behavior
+## Note
 
-When a valid GitHub webhook arrives:
-
-1. Relay verifies the webhook signature.
-2. Relay decides whether the event should trigger CI.
-3. Relay creates a persistent job in SQLite.
-4. Relay schedules the job on the local single-runner queue.
-5. Relay loads the repo pipeline from `.relay.yml`.
-6. Relay executes each command and writes stdout/stderr into job logs.
-
-## Data storage
-
-Runtime data is stored in:
-
-- `data/relay.sqlite`
-
-Legacy JSON migration is supported from:
-
-- `data/jobs.json`
+The older Node/Express implementation is still present in `src/` as legacy reference, but the supported runtime is now FastAPI.

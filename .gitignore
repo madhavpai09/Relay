@@ -3,3 +3,6 @@ node_modules
 importantCMD.md
 .DS_Store
 data/
+__pycache__/
+.pytest_cache/
+.venv/
