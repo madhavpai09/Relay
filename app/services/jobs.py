@@ -9,9 +9,9 @@ from ..config import DATABASE_PATH, DEFAULT_PIPELINE_FILE
 from ..database import db_lock, fetch_all, fetch_one, transaction
 
 
-# Status lifecycle: received -> in_queue -> processing -> processed -> sent
+# Status lifecycle: received -> in_queue -> assigned -> processing -> processed -> sent
 # Any status can transition to failed.
-ALLOWED_STATUSES = {"received", "in_queue", "processing", "processed", "sent", "failed"}
+ALLOWED_STATUSES = {"received", "in_queue", "assigned", "processing", "processed", "sent", "failed"}
 
 LEGACY_JOBS_FILE = DATABASE_PATH.parent / "jobs.json"
 
@@ -54,6 +54,7 @@ def _map_job(row) -> dict | None:
         "deliveryId": row["delivery_id"],
         "repository": row["repository"],
         "triggerType": row["trigger_type"],
+        "language": row["language"] or "generic",
         "ref": row["ref"],
         "commitSha": row["commit_sha"],
         "pullRequestNumber": row["pull_request_number"],
@@ -62,6 +63,8 @@ def _map_job(row) -> dict | None:
         "headRef": row["head_ref"],
         "workspacePath": row["workspace_path"],
         "pipelineFile": row["pipeline_file"],
+        "assignedWorkerId": row["assigned_worker_id"],
+        "assignedWorkerName": row["assigned_worker_name"],
         "status": row["status"],
         "createdAt": row["created_at"],
         "startedAt": row["started_at"],
@@ -91,9 +94,10 @@ def _insert_log(job_id: str, *, level: str = "info", message: str, log_id: str |
 
 
 _JOB_COLUMNS = """
-    id, event, delivery_id, repository, trigger_type, ref, commit_sha,
+    id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
     pull_request_number, action, base_ref, head_ref, workspace_path,
-    pipeline_file, status, created_at, started_at, completed_at, payload_json
+    pipeline_file, assigned_worker_id, assigned_worker_name,
+    status, created_at, started_at, completed_at, payload_json
 """
 
 
@@ -122,6 +126,7 @@ def create_job(
     delivery_id: str,
     repository: str | None,
     trigger_type: str,
+    language: str,
     ref: str | None,
     commit_sha: str | None,
     pull_request_number: int | None,
@@ -142,18 +147,24 @@ def create_job(
             conn.execute(
                 f"""
                 INSERT INTO jobs (
-                    id, event, delivery_id, repository, trigger_type, ref, commit_sha,
+                    id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                     pull_request_number, action, base_ref, head_ref, workspace_path,
-                    pipeline_file, status, created_at, started_at, completed_at, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pipeline_file, assigned_worker_id, assigned_worker_name,
+                    status, created_at, started_at, completed_at, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    job_id, event, delivery_id, repository, trigger_type, ref, commit_sha,
+                    job_id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                     pull_request_number, action, base_ref, head_ref, workspace_path,
-                    pipeline_file, "received", created_at, None, None, json.dumps(payload),
+                    pipeline_file, None, None, "received", created_at, None, None, json.dumps(payload),
                 ),
             )
-            _insert_log(job_id, level="info", message=f"Job received for {trigger_type} event", timestamp=created_at)
+            _insert_log(
+                job_id,
+                level="info",
+                message=f"Job received for {trigger_type} event on {language} lane",
+                timestamp=created_at,
+            )
             conn.commit()
         except Exception:
             conn.rollback()
@@ -186,6 +197,28 @@ def update_job_status(job_id: str, next_status: str) -> dict:
                 level="error" if next_status == "failed" else "info",
                 message=f"Job status changed to {next_status}",
             )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return {"ok": True, "job": get_job_by_id(job_id)}
+
+
+def assign_job_to_worker(job_id: str, worker_id: str, worker_name: str) -> dict:
+    job = get_job_by_id(job_id)
+    if not job:
+        return {"ok": False, "reason": "Job not found"}
+
+    with db_lock:
+        conn = transaction()
+        conn.execute("BEGIN")
+        try:
+            conn.execute(
+                "UPDATE jobs SET assigned_worker_id = ?, assigned_worker_name = ? WHERE id = ?",
+                (worker_id, worker_name, job_id),
+            )
+            _insert_log(job_id, level="info", message=f"Assigned to worker {worker_name} ({worker_id})")
             conn.commit()
         except Exception:
             conn.rollback()
@@ -237,6 +270,16 @@ def get_next_queued_job() -> dict | None:
     return _map_job(row)
 
 
+def list_queued_jobs(limit: int = 10) -> list[dict]:
+    return [
+        _map_job(row)
+        for row in fetch_all(
+            f"SELECT {_JOB_COLUMNS} FROM jobs WHERE status = 'in_queue' ORDER BY created_at ASC LIMIT ?",
+            (limit,),
+        )
+    ]
+
+
 def migrate_legacy_json_if_needed() -> None:
     count_row = fetch_one("SELECT COUNT(*) AS count FROM jobs")
     if count_row["count"] > 0 or not LEGACY_JOBS_FILE.exists():
@@ -255,10 +298,11 @@ def migrate_legacy_json_if_needed() -> None:
                 conn.execute(
                     f"""
                     INSERT INTO jobs (
-                        id, event, delivery_id, repository, trigger_type, ref, commit_sha,
+                        id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                         pull_request_number, action, base_ref, head_ref, workspace_path,
-                        pipeline_file, status, created_at, started_at, completed_at, payload_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        pipeline_file, assigned_worker_id, assigned_worker_name,
+                        status, created_at, started_at, completed_at, payload_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job_id,
@@ -266,6 +310,7 @@ def migrate_legacy_json_if_needed() -> None:
                         legacy_job.get("deliveryId"),
                         legacy_job.get("repository"),
                         legacy_job.get("triggerType") or legacy_job.get("event"),
+                        legacy_job.get("language", "generic"),
                         legacy_job.get("ref"),
                         legacy_job.get("commitSha"),
                         legacy_job.get("pullRequestNumber"),
@@ -274,6 +319,8 @@ def migrate_legacy_json_if_needed() -> None:
                         legacy_job.get("headRef"),
                         legacy_job.get("workspacePath") or str(Path.cwd()),
                         legacy_job.get("pipelineFile") or DEFAULT_PIPELINE_FILE,
+                        legacy_job.get("assignedWorkerId"),
+                        legacy_job.get("assignedWorkerName"),
                         legacy_job.get("status", "received"),
                         legacy_job.get("createdAt") or _now(),
                         legacy_job.get("startedAt"),

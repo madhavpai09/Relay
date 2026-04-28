@@ -6,6 +6,7 @@ import uuid
 
 from ..config import DEFAULT_PIPELINE_FILE
 from ..database import db_lock, fetch_all, fetch_one, transaction
+from .language import infer_repository_language, normalize_language
 from .pipeline import load_pipeline_definition
 
 
@@ -24,7 +25,12 @@ def _map_repository(row) -> dict | None:
         "localPath": row["local_path"],
         "defaultBranch": row["default_branch"],
         "pipelineFile": row["pipeline_file"],
+        "language": row["language"] or "generic",
         "active": bool(row["active"]),
+        "verified": bool(row["verified"]),
+        "verifiedAt": row["verified_at"],
+        "verificationMessage": row["verification_message"],
+        "lastPipelinePath": row["last_pipeline_path"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -45,7 +51,47 @@ def _validate_local_repository_path(local_path: str) -> dict:
     return {"ok": True, "absolute_path": str(absolute_path)}
 
 
-_REPO_COLUMNS = "id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at"
+def _update_verification_state(
+    repo_id: str,
+    *,
+    verified: bool,
+    verification_message: str,
+    verified_at: str | None = None,
+    pipeline_path: str | None = None,
+    language: str | None = None,
+) -> None:
+    now = _now()
+    with db_lock:
+        conn = transaction()
+        conn.execute(
+            """
+            UPDATE repositories
+            SET language = COALESCE(?, language),
+                verified = ?,
+                verified_at = ?,
+                verification_message = ?,
+                last_pipeline_path = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                normalize_language(language) if language else None,
+                1 if verified else 0,
+                verified_at,
+                verification_message,
+                pipeline_path,
+                now,
+                repo_id,
+            ),
+        )
+        conn.commit()
+
+
+_REPO_COLUMNS = """
+    id, full_name, provider, local_path, default_branch, pipeline_file, language,
+    active, verified, verified_at, verification_message, last_pipeline_path,
+    created_at, updated_at
+"""
 
 
 def list_repositories() -> list[dict]:
@@ -76,6 +122,7 @@ def create_or_update_repository(
     localPath: str,
     defaultBranch: str = "main",
     pipelineFile: str = DEFAULT_PIPELINE_FILE,
+    language: str | None = None,
     active: bool = True,
 ) -> dict:
     if not fullName:
@@ -85,31 +132,57 @@ def create_or_update_repository(
     if not path_validation["ok"]:
         return path_validation
 
+    pipeline_result = load_pipeline_definition(path_validation["absolute_path"], pipelineFile)
+    pipeline_language = None
+    if pipeline_result["ok"]:
+        pipeline_language = pipeline_result["pipeline"].get("language")
+
+    detected_language = infer_repository_language(
+        path_validation["absolute_path"],
+        pipeline_language or language,
+    )
+
     existing = get_repository_by_full_name(fullName)
     now = _now()
     repo_id = existing["id"] if existing else str(uuid.uuid4())
     created_at = existing["createdAt"] if existing else now
+    verification_message = (
+        "Repository updated. Verify again to confirm the latest pipeline configuration."
+        if existing
+        else "Repository registered. Run verification to validate the pipeline."
+    )
 
     with db_lock:
         conn = transaction()
         conn.execute(
             """
             INSERT INTO repositories (
-                id, full_name, provider, local_path, default_branch, pipeline_file, active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, full_name, provider, local_path, default_branch, pipeline_file, language,
+                active, verified, verified_at, verification_message, last_pipeline_path,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(full_name) DO UPDATE SET
                 provider = excluded.provider,
                 local_path = excluded.local_path,
                 default_branch = excluded.default_branch,
                 pipeline_file = excluded.pipeline_file,
+                language = excluded.language,
                 active = excluded.active,
+                verified = excluded.verified,
+                verified_at = excluded.verified_at,
+                verification_message = excluded.verification_message,
+                last_pipeline_path = excluded.last_pipeline_path,
                 updated_at = excluded.updated_at
             """,
             (
                 repo_id, fullName, provider,
                 path_validation["absolute_path"],
-                defaultBranch, pipelineFile,
+                defaultBranch, pipelineFile, detected_language,
                 1 if active else 0,
+                0,
+                None,
+                verification_message,
+                None,
                 created_at, now,
             ),
         )
@@ -125,11 +198,40 @@ def validate_repository(repo_id: str) -> dict:
 
     path_validation = _validate_local_repository_path(repository["localPath"])
     if not path_validation["ok"]:
+        _update_verification_state(
+            repo_id,
+            verified=False,
+            verification_message=path_validation["reason"],
+            verified_at=None,
+            pipeline_path=None,
+        )
         return path_validation
 
     pipeline_result = load_pipeline_definition(repository["localPath"], repository["pipelineFile"])
     if not pipeline_result["ok"]:
+        _update_verification_state(
+            repo_id,
+            verified=False,
+            verification_message=pipeline_result["reason"],
+            verified_at=None,
+            pipeline_path=None,
+        )
         return {"ok": False, "reason": pipeline_result["reason"]}
+
+    resolved_language = infer_repository_language(
+        repository["localPath"],
+        pipeline_result["pipeline"].get("language") or repository["language"],
+    )
+    verified_at = _now()
+    _update_verification_state(
+        repo_id,
+        verified=True,
+        verified_at=verified_at,
+        verification_message=f"Verified successfully. {len(pipeline_result['pipeline']['steps'])} pipeline steps detected.",
+        pipeline_path=pipeline_result["pipeline_path"],
+        language=resolved_language,
+    )
+    repository = get_repository_by_id(repo_id)
 
     return {
         "ok": True,
@@ -137,6 +239,22 @@ def validate_repository(repo_id: str) -> dict:
         "pipeline": pipeline_result["pipeline"],
         "pipelinePath": pipeline_result["pipeline_path"],
     }
+
+
+def unverify_repository(repo_id: str) -> dict:
+    repository = get_repository_by_id(repo_id)
+    if not repository:
+        return {"ok": False, "reason": "Repository not found"}
+
+    _update_verification_state(
+        repo_id,
+        verified=False,
+        verified_at=None,
+        verification_message="Verification cleared. Verify again when you want this repository trusted by the dashboard.",
+        pipeline_path=repository["lastPipelinePath"],
+    )
+
+    return {"ok": True, "repository": get_repository_by_id(repo_id)}
 
 
 def delete_repository(repo_id: str) -> dict:

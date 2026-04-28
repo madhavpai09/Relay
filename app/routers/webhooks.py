@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from ..config import BASE_DIR, GITHUB_WEBHOOK_SECRET
 from ..services.event_decider import should_create_job
 from ..services.github_context import build_github_job_context
+from ..services.language import infer_repository_language
 from ..services.jobs import create_job, get_job_by_delivery_id
 from ..services.repositories import get_repository_by_full_name
 from ..services.scheduler import scheduler
@@ -68,6 +69,11 @@ async def github_webhook(request: Request):
     registered_repository = get_repository_by_full_name(github_context["repository"])
     workspace_path = registered_repository["localPath"] if registered_repository else str(BASE_DIR)
     pipeline_file = registered_repository["pipelineFile"] if registered_repository else ".relay.yml"
+    language = (
+        registered_repository["language"]
+        if registered_repository
+        else infer_repository_language(workspace_path)
+    )
 
     existing_job = get_job_by_delivery_id(delivery_id)
     if existing_job:
@@ -87,6 +93,7 @@ async def github_webhook(request: Request):
         delivery_id=delivery_id or str(Path.cwd()),
         repository=github_context["repository"],
         trigger_type=github_context["trigger_type"],
+        language=language,
         ref=github_context["ref"],
         commit_sha=github_context["commit_sha"],
         pull_request_number=github_context["pull_request_number"],
@@ -108,6 +115,7 @@ async def github_webhook(request: Request):
         "jobId": job["id"],
         "jobStatus": job["status"],
         "triggerType": job["triggerType"],
+        "language": job["language"],
         "ref": job["ref"],
         "commitSha": job["commitSha"],
         "pullRequestNumber": job["pullRequestNumber"],

@@ -23,7 +23,12 @@ with db_lock:
           local_path TEXT NOT NULL,
           default_branch TEXT,
           pipeline_file TEXT NOT NULL,
+          language TEXT,
           active INTEGER NOT NULL,
+          verified INTEGER NOT NULL DEFAULT 0,
+          verified_at TEXT,
+          verification_message TEXT,
+          last_pipeline_path TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
@@ -34,6 +39,7 @@ with db_lock:
           delivery_id TEXT NOT NULL UNIQUE,
           repository TEXT,
           trigger_type TEXT,
+          language TEXT,
           ref TEXT,
           commit_sha TEXT,
           pull_request_number INTEGER,
@@ -42,6 +48,8 @@ with db_lock:
           head_ref TEXT,
           workspace_path TEXT,
           pipeline_file TEXT,
+          assigned_worker_id TEXT,
+          assigned_worker_name TEXT,
           status TEXT NOT NULL,
           created_at TEXT NOT NULL,
           started_at TEXT,
@@ -63,6 +71,27 @@ with db_lock:
         CREATE INDEX IF NOT EXISTS idx_job_logs_job_id ON job_logs(job_id);
         """
     )
+
+
+def _ensure_column(table: str, column: str, definition: str) -> None:
+    existing = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in existing:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+with db_lock:
+    _ensure_column("repositories", "language", "TEXT")
+    _ensure_column("repositories", "verified", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column("repositories", "verified_at", "TEXT")
+    _ensure_column("repositories", "verification_message", "TEXT")
+    _ensure_column("repositories", "last_pipeline_path", "TEXT")
+    _ensure_column("jobs", "language", "TEXT")
+    _ensure_column("jobs", "assigned_worker_id", "TEXT")
+    _ensure_column("jobs", "assigned_worker_name", "TEXT")
+    connection.commit()
 
 
 def fetch_one(query: str, params: tuple | dict = ()) -> sqlite3.Row | None:

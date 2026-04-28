@@ -1,0 +1,526 @@
+:root {
+  --bg: #0f1724;
+  --bg-soft: #162033;
+  --panel: rgba(15, 23, 36, 0.78);
+  --panel-strong: rgba(11, 18, 30, 0.92);
+  --panel-soft: rgba(155, 190, 255, 0.08);
+  --line: rgba(148, 163, 184, 0.18);
+  --line-strong: rgba(148, 163, 184, 0.3);
+  --text: #edf2ff;
+  --muted: #9fb1ca;
+  --accent: #45c4ff;
+  --accent-strong: #1d8fd4;
+  --accent-soft: rgba(69, 196, 255, 0.18);
+  --success: #65d6a6;
+  --warning: #ffcb6b;
+  --danger: #ff8c8c;
+  --shadow: 0 28px 70px rgba(2, 8, 23, 0.42);
+  --radius-xl: 32px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(69, 196, 255, 0.2), transparent 26%),
+    radial-gradient(circle at 86% 14%, rgba(125, 92, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, #0b1220 0%, #101a2a 42%, #0d1523 100%);
+}
+
+.page-shell {
+  min-height: 100vh;
+}
+
+.hero-section,
+.dashboard-section {
+  padding-inline: 6vw;
+}
+
+.hero-section {
+  min-height: 100vh;
+  padding-top: 72px;
+  padding-bottom: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.95fr);
+  gap: 34px;
+  align-items: center;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hero-copy h1 {
+  margin: 0;
+  max-width: 11ch;
+  font-size: clamp(3.2rem, 7vw, 6.4rem);
+  line-height: 0.95;
+}
+
+.hero-text,
+.section-description,
+.panel-caption,
+.empty-state,
+.meta-line,
+.card-subtitle,
+.simulation-status,
+#selectedJobMeta {
+  color: var(--muted);
+}
+
+.hero-text {
+  margin: 26px 0 0;
+  max-width: 60ch;
+  line-height: 1.7;
+  font-size: 1.08rem;
+}
+
+.hero-actions,
+.button-row,
+.repo-actions,
+.meta-pill-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-actions {
+  margin-top: 30px;
+}
+
+.primary-button,
+.secondary-button,
+.panel-action,
+.tab-button,
+.repo-action,
+.job-log-button,
+.danger-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.primary-button {
+  color: #06111c;
+  text-decoration: none;
+  background: linear-gradient(135deg, #8de7ff, var(--accent));
+  box-shadow: 0 14px 32px rgba(69, 196, 255, 0.25);
+}
+
+.secondary-button,
+.panel-action,
+.job-log-button,
+.repo-action {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.danger-button {
+  background: rgba(255, 140, 140, 0.09);
+  color: var(--danger);
+  border: 1px solid rgba(255, 140, 140, 0.24);
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.panel-action:hover,
+.tab-button:hover,
+.repo-action:hover,
+.job-log-button:hover,
+.danger-button:hover {
+  transform: translateY(-1px);
+}
+
+.repo-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hero-sidecar {
+  display: grid;
+  gap: 16px;
+}
+
+.live-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(11, 18, 30, 0.82);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 8px rgba(101, 214, 166, 0.12);
+}
+
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metric-card,
+.panel-card,
+.repo-card,
+.worker-card,
+.job-item,
+.queue-item,
+.summary-card {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.metric-card,
+.summary-card {
+  border-radius: var(--radius-lg);
+  padding: 22px;
+}
+
+.metric-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.metric-card strong,
+.summary-card strong {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.dashboard-section {
+  padding-bottom: 72px;
+}
+
+.section-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+.section-description {
+  max-width: 58ch;
+  line-height: 1.7;
+}
+
+.tab-strip {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding: 12px;
+  border-radius: var(--radius-xl);
+  background: rgba(10, 16, 28, 0.82);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.tab-button {
+  background: transparent;
+  color: var(--muted);
+}
+
+.tab-button.active {
+  color: #06111c;
+  background: linear-gradient(135deg, #8de7ff, var(--accent-strong));
+}
+
+.flash-message {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  color: var(--success);
+  background: rgba(101, 214, 166, 0.14);
+  border: 1px solid rgba(101, 214, 166, 0.22);
+}
+
+.flash-message.error {
+  color: var(--danger);
+  background: rgba(255, 140, 140, 0.12);
+  border-color: rgba(255, 140, 140, 0.18);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.panel-header {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.panel-header.compact {
+  margin-bottom: 18px;
+}
+
+.panel-header h3,
+.panel-card h4,
+.detail-header h4,
+.repo-card h4,
+.queue-item h4,
+.worker-card h4,
+.job-item h4 {
+  margin: 0;
+}
+
+.panel-caption,
+.card-subtitle {
+  margin: 6px 0 0;
+}
+
+.repo-layout,
+.jobs-layout,
+.two-column-layout,
+.simulation-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.repo-layout {
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.5fr);
+}
+
+.two-column-layout,
+.simulation-layout {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.jobs-layout {
+  grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.15fr);
+}
+
+.queue-summary-grid,
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.queue-summary-grid {
+  margin-bottom: 16px;
+}
+
+.repo-card,
+.worker-card,
+.panel-card,
+.job-item,
+.queue-item {
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.registry-card {
+  min-width: 0;
+}
+
+.stack-list,
+.repo-meta,
+.worker-meta,
+.job-meta,
+.form-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.card-topline,
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.meta-line strong {
+  color: var(--text);
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(69, 196, 255, 0.1);
+  color: #96e7ff;
+  font-size: 0.86rem;
+}
+
+.meta-pill.success {
+  color: var(--success);
+  background: rgba(101, 214, 166, 0.12);
+}
+
+.meta-pill.warning {
+  color: var(--warning);
+  background: rgba(255, 203, 107, 0.12);
+}
+
+.meta-pill.error {
+  color: var(--danger);
+  background: rgba(255, 140, 140, 0.12);
+}
+
+.repo-validation-result,
+.empty-state {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.repo-validation-result {
+  margin-top: 16px;
+  padding: 12px 14px;
+  line-height: 1.55;
+}
+
+.detail-card {
+  min-height: 540px;
+}
+
+.log-viewer {
+  margin: 0;
+  min-height: 430px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 18px;
+  padding: 20px;
+  background: rgba(4, 8, 17, 0.88);
+  color: #d9f3ff;
+  border: 1px solid rgba(69, 196, 255, 0.12);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.job-item.selected {
+  border-color: rgba(69, 196, 255, 0.4);
+  box-shadow: 0 18px 44px rgba(13, 34, 66, 0.52);
+}
+
+.form-stack label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.form-stack input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font: inherit;
+}
+
+.form-stack input::placeholder {
+  color: rgba(159, 177, 202, 0.62);
+}
+
+.form-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.checkbox-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.empty-state {
+  padding: 24px;
+}
+
+@media (max-width: 1080px) {
+  .hero-section,
+  .repo-layout,
+  .jobs-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .hero-metrics,
+  .form-split {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header,
+  .panel-header,
+  .detail-header,
+  .card-topline {
+    align-items: start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-section,
+  .dashboard-section {
+    padding-inline: 20px;
+  }
+
+  .hero-copy h1 {
+    max-width: none;
+  }
+
+  .tab-strip {
+    top: 8px;
+  }
+}

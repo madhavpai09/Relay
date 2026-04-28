@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="/static/dashboard.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <section class="hero-section" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow">Relay Master</p>
+          <h1>Operate your CI control plane from one polished dashboard.</h1>
+          <p class="hero-text">
+            Register repositories, verify pipeline health once, watch worker lanes in real time,
+            and keep the simulated Jenkins master feeling closer to an actual operations console.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#dashboard">Open Control Panel</a>
+            <button class="secondary-button" id="refreshAllButton" type="button">Refresh Everything</button>
+          </div>
+        </div>
+
+        <div class="hero-sidecar">
+          <div class="live-banner">
+            <span class="live-dot"></span>
+            <span id="autoRefreshLabel">Live refresh every 4s</span>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric-card">
+              <span class="metric-label">System Health</span>
+              <strong id="heroHealthStatus">Checking...</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Repositories</span>
+              <strong id="heroRepositoryCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Verified Repos</span>
+              <strong id="heroVerifiedRepositoryCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Tracked Jobs</span>
+              <strong id="heroJobCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Workers Online</span>
+              <strong id="heroWorkerCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Queued Jobs</span>
+              <strong id="heroQueuedJobCount">0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-section" id="dashboard">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Control Panel</p>
+            <h2>Master Dashboard</h2>
+          </div>
+          <p class="section-description">
+            Add repositories to Relay, trust them through verification, inspect the live queue, and
+            monitor worker activity without leaving the website.
+          </p>
+        </div>
+
+        <div class="tab-strip">
+          <button class="tab-button active" data-tab="repositories">Repositories</button>
+          <button class="tab-button" data-tab="queue">Queue</button>
+          <button class="tab-button" data-tab="jobs">Jobs</button>
+          <button class="tab-button" data-tab="workers">Workers</button>
+          <button class="tab-button" data-tab="simulation">Simulation</button>
+        </div>
+
+        <div class="flash-message" id="flashMessage" hidden></div>
+
+        <div class="tab-panels">
+          <section class="tab-panel active" data-panel="repositories">
+            <div class="repo-layout">
+              <div class="panel-card intake-card">
+                <div class="panel-header compact">
+                  <div>
+                    <h3>Register Repository</h3>
+                    <p class="panel-caption">Press Enter or submit to create/update a repo record on the Relay master.</p>
+                  </div>
+                </div>
+
+                <form id="repositoryForm" class="form-stack">
+                  <label>
+                    Repository Name
+                    <input name="fullName" type="text" placeholder="owner/repo" required />
+                  </label>
+                  <div class="form-split">
+                    <label>
+                      Provider
+                      <input name="provider" type="text" value="github" required />
+                    </label>
+                    <label>
+                      Default Branch
+                      <input name="defaultBranch" type="text" value="main" required />
+                    </label>
+                  </div>
+                  <label>
+                    Local Path
+                    <input name="localPath" type="text" placeholder="/absolute/path/to/local/clone" required />
+                  </label>
+                  <div class="form-split">
+                    <label>
+                      Pipeline File
+                      <input name="pipelineFile" type="text" value=".relay.yml" required />
+                    </label>
+                    <label>
+                      Language Override
+                      <input name="language" type="text" placeholder="optional" />
+                    </label>
+                  </div>
+                  <label class="checkbox-row">
+                    <input name="active" type="checkbox" checked />
+                    <span>Mark repository as active immediately</span>
+                  </label>
+                  <div class="button-row">
+                    <button class="primary-button" type="submit">Create Or Update</button>
+                    <button class="secondary-button" id="resetRepositoryFormButton" type="button">Reset</button>
+                  </div>
+                </form>
+              </div>
+
+              <div class="panel-card registry-card">
+                <div class="panel-header">
+                  <div>
+                    <h3>Registered Repositories</h3>
+                    <p class="panel-caption">Verification state is persisted until a repo changes or you clear it manually.</p>
+                  </div>
+                  <button class="panel-action" id="refreshRepositoriesButton" type="button">Refresh</button>
+                </div>
+                <div class="card-grid" id="repositoriesGrid"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="queue">
+            <div class="panel-header">
+              <div>
+                <h3>Queue Snapshot</h3>
+                <p class="panel-caption">Auto-refresh keeps queue depth, active workers, and in-flight jobs current.</p>
+              </div>
+              <button class="panel-action" id="refreshQueueButton" type="button">Refresh</button>
+            </div>
+            <div class="queue-summary-grid" id="queueSummaryGrid"></div>
+            <div class="two-column-layout">
+              <div class="panel-card">
+                <h4>Queued Jobs</h4>
+                <div class="stack-list" id="queuedJobsList"></div>
+              </div>
+              <div class="panel-card">
+                <h4>Active Jobs</h4>
+                <div class="stack-list" id="activeJobsList"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="jobs">
+            <div class="panel-header">
+              <div>
+                <h3>Job History</h3>
+                <p class="panel-caption">Inspect logs and watch execution move across the queue in near real time.</p>
+              </div>
+              <button class="panel-action" id="refreshJobsButton" type="button">Refresh</button>
+            </div>
+            <div class="jobs-layout">
+              <div class="panel-card">
+                <div class="stack-list" id="jobsList"></div>
+              </div>
+              <div class="panel-card detail-card">
+                <div class="detail-header">
+                  <h4>Job Detail</h4>
+                  <span id="selectedJobMeta">Select a job to inspect logs</span>
+                </div>
+                <pre class="log-viewer" id="jobLogsViewer">No job selected.</pre>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="workers">
+            <div class="panel-header">
+              <div>
+                <h3>Worker Pool</h3>
+                <p class="panel-caption">See who is busy, what they can process, and how much work they have already completed.</p>
+              </div>
+              <button class="panel-action" id="refreshWorkersButton" type="button">Refresh</button>
+            </div>
+            <div class="card-grid" id="workersGrid"></div>
+          </section>
+
+          <section class="tab-panel" data-panel="simulation">
+            <div class="panel-header">
+              <div>
+                <h3>Simulation Controls</h3>
+                <p class="panel-caption">Generate workload continuously or in bursts for a demo-friendly control room.</p>
+              </div>
+              <button class="panel-action" id="refreshSimulationButton" type="button">Refresh</button>
+            </div>
+            <div class="simulation-layout">
+              <div class="panel-card">
+                <h4>Traffic Generator</h4>
+                <form id="simulationStartForm" class="form-stack">
+                  <label>
+                    Min Delay Seconds
+                    <input name="minDelaySeconds" type="number" min="0.5" step="0.5" value="2" />
+                  </label>
+                  <label>
+                    Max Delay Seconds
+                    <input name="maxDelaySeconds" type="number" min="1" step="0.5" value="5" />
+                  </label>
+                  <div class="button-row">
+                    <button class="primary-button" type="submit">Start Simulation</button>
+                    <button class="secondary-button" id="stopSimulationButton" type="button">Stop</button>
+                  </div>
+                </form>
+              </div>
+              <div class="panel-card">
+                <h4>Generate Burst</h4>
+                <form id="simulationGenerateForm" class="form-stack">
+                  <label>
+                    Number of Jobs
+                    <input name="count" type="number" min="1" max="10" step="1" value="4" />
+                  </label>
+                  <button class="primary-button" type="submit">Generate Now</button>
+                </form>
+                <div class="simulation-status" id="simulationStatusCard"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <script src="/static/dashboard.js" defer></script>
+  </body>
+</html>

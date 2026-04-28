@@ -1,6 +1,17 @@
 # Relay Master
 
-Relay Master is now a FastAPI-based Jenkins-master-style CI controller.
+Relay Master is a FastAPI-based simulated Jenkins system.
+
+It now covers:
+
+- GitHub webhook intake
+- SQLite-backed job persistence
+- repository registration
+- pipeline validation through `.relay.yml`
+- queueing and scheduling
+- simulated multi-worker execution
+- language-aware worker assignment
+- random traffic simulation for demo workloads
 
 ## Run
 
@@ -8,17 +19,68 @@ Relay Master is now a FastAPI-based Jenkins-master-style CI controller.
 uvicorn main:app --reload --port 8000
 ```
 
-## What it does
+Then open:
 
-- receives GitHub webhooks
-- verifies webhook signatures
-- filters CI-relevant events
-- deduplicates deliveries
-- persists jobs and logs in SQLite
-- registers local repositories
-- validates `.relay.yml`
-- schedules queued jobs automatically
-- executes pipeline commands in the registered repo workspace
+```txt
+http://localhost:8000
+```
+
+## Worker model
+
+Relay starts with four simulated workers:
+
+- `Python Worker 1`
+- `Python Worker 2`
+- `Node Worker 1`
+- `Universal Worker 1`
+
+Workers are chosen based on:
+
+- repository/job language
+- current worker availability
+- light randomness to mimic real scheduling pressure
+
+Queued jobs are also selected with a small amount of randomness from the front of the queue so the system feels less perfectly deterministic.
+
+## Repository setup
+
+Register a repository first:
+
+```bash
+curl -X POST http://localhost:8000/repositories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "owner/repo",
+    "provider": "github",
+    "localPath": "/absolute/path/to/local/clone",
+    "defaultBranch": "main",
+    "pipelineFile": ".relay.yml",
+    "active": true
+  }'
+```
+
+Then validate it:
+
+```bash
+curl -X POST http://localhost:8000/repositories/REPOSITORY_ID/validate
+```
+
+## Pipeline file
+
+Each registered repository should contain a `.relay.yml` file like:
+
+```yaml
+language: python
+steps:
+  - name: install
+    command: pip install -r requirements.txt
+  - name: test
+    command: pytest
+  - name: build
+    command: python -m compileall .
+```
+
+`language` is optional. If omitted, Relay tries to infer it from files like `requirements.txt`, `pyproject.toml`, `package.json`, `pom.xml`, or `go.mod`.
 
 ## Main endpoints
 
@@ -37,26 +99,51 @@ uvicorn main:app --reload --port 8000
 - `POST /jobs/{id}/run`
 - `POST /jobs/{id}/logs`
 - `GET /queue`
+- `GET /workers`
+- `GET /simulation`
+- `POST /simulation/start`
+- `POST /simulation/stop`
+- `POST /simulation/generate`
 
-## Pipeline file
+## Demo paths
 
-Each registered repository should contain a `.relay.yml` file like:
+### Real GitHub flow
 
-```yaml
-steps:
-  - name: install
-    command: npm install
-  - name: test
-    command: npm test
-  - name: build
-    command: npm run build
+1. Register the local repository clone.
+2. Add `.relay.yml`.
+3. Expose Relay with ngrok.
+4. Create the GitHub webhook pointing to `/webhooks/github`.
+5. Push code.
+6. Watch `GET /jobs`, `GET /jobs/{id}/logs`, and `GET /workers`.
+
+### Pure simulation flow
+
+1. Register one or more local repositories.
+2. Start the simulation:
+
+```bash
+curl -X POST http://localhost:8000/simulation/start \
+  -H "Content-Type: application/json" \
+  -d '{"minDelaySeconds": 2, "maxDelaySeconds": 5}'
+```
+
+3. Or generate a burst immediately:
+
+```bash
+curl -X POST http://localhost:8000/simulation/generate \
+  -H "Content-Type: application/json" \
+  -d '{"count": 4}'
+```
+
+4. Inspect queue and workers:
+
+```bash
+curl http://localhost:8000/queue
+curl http://localhost:8000/workers
+curl http://localhost:8000/jobs
 ```
 
 ## Data
 
 - SQLite database: `data/relay.sqlite`
-- Legacy migration source: `data/jobs.json`
-
-## Note
-
-The older Node/Express implementation is still present in `src/` as legacy reference, but the supported runtime is now FastAPI.
+- legacy migration source: `data/jobs.json`

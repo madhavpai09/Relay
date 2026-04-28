@@ -26,6 +26,7 @@ def _apply_key_value(target: dict, line: str) -> None:
 
 def parse_relay_yaml(content: str) -> dict:
     lines = content.splitlines()
+    pipeline: dict = {}
     steps: list[dict] = []
     in_steps_section = False
     current_step: dict | None = None
@@ -37,9 +38,10 @@ def parse_relay_yaml(content: str) -> dict:
             continue
 
         if not in_steps_section:
-            if trimmed != "steps:":
-                raise ValueError("Pipeline file must start with a steps: section")
-            in_steps_section = True
+            if trimmed == "steps:":
+                in_steps_section = True
+            else:
+                _apply_key_value(pipeline, trimmed)
             continue
 
         if trimmed.startswith("- "):
@@ -66,7 +68,8 @@ def parse_relay_yaml(content: str) -> dict:
         if not step.get("name") or not step.get("command"):
             raise ValueError("Each pipeline step must contain both name and command")
 
-    return {"steps": steps}
+    pipeline["steps"] = steps
+    return pipeline
 
 
 def load_pipeline_definition(workspace_path: str | Path, pipeline_file: str = DEFAULT_PIPELINE_FILE) -> dict:

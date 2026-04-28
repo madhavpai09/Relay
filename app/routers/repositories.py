@@ -8,6 +8,7 @@ from ..services.repositories import (
     delete_repository,
     get_repository_by_id,
     list_repositories,
+    unverify_repository,
     validate_repository,
 )
 
@@ -48,6 +49,17 @@ def repositories_validate(repo_id: str) -> dict:
         "repository": result["repository"],
         "pipelinePath": result["pipelinePath"],
         "pipeline": result["pipeline"],
+    }
+
+
+@router.post("/{repo_id}/unverify")
+def repositories_unverify(repo_id: str) -> dict:
+    result = unverify_repository(repo_id)
+    if not result["ok"]:
+        raise HTTPException(status_code=404, detail=result["reason"])
+    return {
+        "message": "Repository marked as unverified",
+        "repository": result["repository"],
     }
 
 

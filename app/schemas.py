@@ -9,6 +9,7 @@ class RepositoryCreate(BaseModel):
     localPath: str
     defaultBranch: str = "main"
     pipelineFile: str = ".relay.yml"
+    language: str | None = None
     active: bool = True
 
 
@@ -19,3 +20,13 @@ class JobStatusUpdate(BaseModel):
 class JobLogCreate(BaseModel):
     level: str = "info"
     message: str
+
+
+class SimulationStartRequest(BaseModel):
+    minDelaySeconds: float = 2.0
+    maxDelaySeconds: float = 6.0
+
+
+class SimulationGenerateRequest(BaseModel):
+    count: int = 1
+    repositoryId: str | None = None
