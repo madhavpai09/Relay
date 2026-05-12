@@ -19,7 +19,8 @@ const elements = {
   queueSummaryGrid: document.getElementById("queueSummaryGrid"),
   queuedJobsList: document.getElementById("queuedJobsList"),
   activeJobsList: document.getElementById("activeJobsList"),
-  jobsList: document.getElementById("jobsList"),
+  currentJobsList: document.getElementById("currentJobsList"),
+  processedJobsList: document.getElementById("processedJobsList"),
   workersGrid: document.getElementById("workersGrid"),
   jobLogsViewer: document.getElementById("jobLogsViewer"),
   selectedJobMeta: document.getElementById("selectedJobMeta"),
@@ -39,6 +40,7 @@ function escapeHtml(value) {
 
 function showFlash(message, isError = false) {
   const flash = elements.flashMessage;
+  if (!flash) return;
   flash.textContent = message;
   flash.hidden = false;
   flash.classList.toggle("error", isError);
@@ -107,9 +109,13 @@ function renderQueueSummary(summary = {}) {
 async function loadHealth() {
   try {
     const health = await fetchJson("/health");
-    elements.heroHealthStatus.textContent = `${health.status} / ${health.service}`;
+    if (elements.heroHealthStatus) {
+      elements.heroHealthStatus.textContent = `${health.status} / ${health.service}`;
+    }
   } catch (error) {
-    elements.heroHealthStatus.textContent = "Unavailable";
+    if (elements.heroHealthStatus) {
+      elements.heroHealthStatus.textContent = "Unavailable";
+    }
     throw error;
   }
 }
@@ -119,10 +125,14 @@ function repositoryActionLabel(repo) {
 }
 
 function renderRepositories(repositories) {
-  elements.heroRepositoryCount.textContent = String(repositories.length);
-  elements.heroVerifiedRepositoryCount.textContent = String(
-    repositories.filter((repo) => repo.verified).length,
-  );
+  if (elements.heroRepositoryCount) {
+    elements.heroRepositoryCount.textContent = String(repositories.length);
+  }
+  if (elements.heroVerifiedRepositoryCount) {
+    elements.heroVerifiedRepositoryCount.textContent = String(
+      repositories.filter((repo) => repo.verified).length,
+    );
+  }
 
   if (!repositories.length) {
     renderEmpty(elements.repositoriesGrid, "No repositories registered yet.");
@@ -214,7 +224,9 @@ async function loadRepositories() {
 
 async function loadQueue() {
   const data = await fetchJson("/queue");
-  elements.heroQueuedJobCount.textContent = String(data.summary?.queuedCount ?? data.queuedJobs.length);
+  if (elements.heroQueuedJobCount) {
+    elements.heroQueuedJobCount.textContent = String(data.summary?.queuedCount ?? data.queuedJobs.length);
+  }
   renderQueueSummary(data.summary);
 
   if (!data.queuedJobs.length) {
@@ -273,10 +285,13 @@ async function loadQueue() {
 async function loadJobs() {
   const data = await fetchJson("/jobs");
   state.jobs = data.jobs;
-  elements.heroJobCount.textContent = String(data.jobs.length);
+  if (elements.heroJobCount) {
+    elements.heroJobCount.textContent = String(data.jobs.length);
+  }
 
   if (!data.jobs.length) {
-    renderEmpty(elements.jobsList, "No jobs have been recorded yet.");
+    renderEmpty(elements.currentJobsList, "No current jobs.");
+    renderEmpty(elements.processedJobsList, "No processed jobs yet.");
     elements.jobLogsViewer.textContent = "No job selected.";
     elements.selectedJobMeta.textContent = "Select a job to inspect logs";
     state.selectedJobId = null;
@@ -287,31 +302,45 @@ async function loadJobs() {
     state.selectedJobId = data.jobs[0].id;
   }
 
-  elements.jobsList.innerHTML = data.jobs
-    .map(
-      (job) => `
-        <article class="job-item ${job.id === state.selectedJobId ? "selected" : ""}">
-          <div class="card-topline">
-            <div>
-              <h4>${escapeHtml(job.repository || "Unknown repository")}</h4>
-              <p class="card-subtitle">${escapeHtml(job.triggerType)} • ${escapeHtml(job.language)}</p>
+  const currentStatuses = new Set(["received", "in_queue", "assigned", "processing"]);
+  const currentJobs = data.jobs.filter((job) => currentStatuses.has(job.status));
+  const processedJobs = data.jobs.filter((job) => !currentStatuses.has(job.status));
+
+  function renderJobList(target, jobs, emptyMessage) {
+    if (!jobs.length) {
+      renderEmpty(target, emptyMessage);
+      return;
+    }
+
+    target.innerHTML = jobs
+      .map(
+        (job) => `
+          <article class="job-item ${job.id === state.selectedJobId ? "selected" : ""}">
+            <div class="card-topline">
+              <div>
+                <h4>${escapeHtml(job.repository || "Unknown repository")}</h4>
+                <p class="card-subtitle">${escapeHtml(job.triggerType)} • ${escapeHtml(job.language)}</p>
+              </div>
+              ${statusPill(job.status)}
             </div>
-            ${statusPill(job.status)}
-          </div>
-          <div class="job-meta">
-            <span class="meta-line"><strong>Job:</strong> ${escapeHtml(job.id)}</span>
-            <span class="meta-line"><strong>Worker:</strong> ${escapeHtml(formatValue(job.assignedWorkerName))}</span>
-            <span class="meta-line"><strong>Commit:</strong> ${escapeHtml(formatValue(job.commitSha))}</span>
-            <span class="meta-line"><strong>Priority:</strong> ${escapeHtml(job.priorityLabel)} (${escapeHtml(job.priorityScore)})</span>
-            <span class="meta-line"><strong>Created:</strong> ${escapeHtml(formatDateTime(job.createdAt))}</span>
-          </div>
-          <div class="meta-pill-row">
-            <button class="job-log-button" data-job-logs="${escapeHtml(job.id)}">View Logs</button>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
+            <div class="job-meta">
+              <span class="meta-line"><strong>Job:</strong> ${escapeHtml(job.id)}</span>
+              <span class="meta-line"><strong>Worker:</strong> ${escapeHtml(formatValue(job.assignedWorkerName))}</span>
+              <span class="meta-line"><strong>Commit:</strong> ${escapeHtml(formatValue(job.commitSha))}</span>
+              <span class="meta-line"><strong>Priority:</strong> ${escapeHtml(job.priorityLabel)} (${escapeHtml(job.priorityScore)})</span>
+              <span class="meta-line"><strong>Created:</strong> ${escapeHtml(formatDateTime(job.createdAt))}</span>
+            </div>
+            <div class="meta-pill-row">
+              <button class="job-log-button" data-job-logs="${escapeHtml(job.id)}">View Logs</button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
+  renderJobList(elements.currentJobsList, currentJobs, "No current jobs.");
+  renderJobList(elements.processedJobsList, processedJobs, "No processed jobs yet.");
 
   document.querySelectorAll("[data-job-logs]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -346,7 +375,9 @@ async function selectJob(jobId) {
 
 async function loadWorkers() {
   const data = await fetchJson("/workers");
-  elements.heroWorkerCount.textContent = String(data.workers.length);
+  if (elements.heroWorkerCount) {
+    elements.heroWorkerCount.textContent = String(data.workers.length);
+  }
 
   if (!data.workers.length) {
     renderEmpty(elements.workersGrid, "No workers are configured.");
@@ -411,13 +442,29 @@ function setupTabs() {
   const buttons = document.querySelectorAll(".tab-button");
   const panels = document.querySelectorAll(".tab-panel");
 
+  function activateTab(tabName, pushState = true) {
+    buttons.forEach((item) => item.classList.toggle("active", item.getAttribute("data-tab") === tabName));
+    panels.forEach((panel) => {
+      panel.classList.toggle("active", panel.getAttribute("data-panel") === tabName);
+    });
+
+    if (pushState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tabName);
+      window.history.replaceState({}, "", url);
+    }
+  }
+
+  const initialTab = new URL(window.location.href).searchParams.get("tab");
+  const validTabs = new Set(Array.from(buttons).map((button) => button.getAttribute("data-tab")));
+  if (initialTab && validTabs.has(initialTab)) {
+    activateTab(initialTab, false);
+  }
+
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
       const tabName = button.getAttribute("data-tab");
-      buttons.forEach((item) => item.classList.toggle("active", item === button));
-      panels.forEach((panel) => {
-        panel.classList.toggle("active", panel.getAttribute("data-panel") === tabName);
-      });
+      activateTab(tabName);
     });
   });
 }
@@ -467,7 +514,10 @@ function setupRepositoryForm() {
 }
 
 function setupButtons() {
-  document.getElementById("refreshAllButton").addEventListener("click", () => refreshAll(true));
+  const refreshAllButton = document.getElementById("refreshAllButton");
+  if (refreshAllButton) {
+    refreshAllButton.addEventListener("click", () => refreshAll(true));
+  }
   document.getElementById("refreshRepositoriesButton").addEventListener("click", () => loadRepositories().catch((error) => showFlash(error.message, true)));
   document.getElementById("refreshQueueButton").addEventListener("click", () => loadQueue().catch((error) => showFlash(error.message, true)));
   document.getElementById("refreshJobsButton").addEventListener("click", () => loadJobs().catch((error) => showFlash(error.message, true)));

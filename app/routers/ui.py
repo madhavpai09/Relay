@@ -13,9 +13,18 @@ router = APIRouter(tags=["ui"])
 
 
 @router.get("/", response_class=HTMLResponse)
-def dashboard(request: Request):
+def home(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="home.html",
+        context={"page_title": "Relay Master | Overview"},
+    )
+
+
+@router.get("/control", response_class=HTMLResponse)
+def control_panel(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"page_title": "Relay - A Jenkins Mini Project"},
+        context={"page_title": "Relay Master | Control Panel"},
     )

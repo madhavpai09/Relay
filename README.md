@@ -75,6 +75,15 @@ Then validate it:
 curl -X POST http://localhost:8000/repositories/REPOSITORY_ID/validate
 ```
 
+Repository verification now checks all of the following:
+
+- the configured local path exists and is a directory
+- the directory is a valid Git repository
+- the repository has an `origin` remote
+- the `origin` remote matches the registered `owner/repo`
+- the default branch and tracked branches exist in local refs or `origin/*`
+- the configured `.relay.yml` exists and parses successfully
+
 ## Pipeline file
 
 Each registered repository should contain a `.relay.yml` file like:

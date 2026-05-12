@@ -7,85 +7,108 @@
     <link rel="stylesheet" href="/static/dashboard.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <section class="hero-section" id="top">
-        <div class="hero-copy">
-          <p class="eyebrow">Operate your CI control plane from one polished dashboard</p>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">Relay Platform</p>
           <h1>Relay Master</h1>
-          <p class="hero-text">
-            Register repositories, verify pipeline health once, watch worker lanes in real time,
-            and keep the simulated Jenkins master feeling closer to an actual operations console.
+          <p class="brand-copy">
+            CI orchestration for repositories, queues, workers, and live webhook traffic.
           </p>
-          <div class="hero-actions">
-            <a class="primary-button" href="#dashboard">Open Control Panel</a>
-            <button class="secondary-button" id="refreshAllButton" type="button">Refresh Everything</button>
-          </div>
         </div>
 
-        <div class="hero-sidecar">
+        <nav class="sidebar-nav" aria-label="Primary">
+          <div class="nav-group">
+            <p class="nav-group-label">Navigation</p>
+            <a class="tab-link" href="/">
+              <span class="nav-icon">O</span>
+              <span class="nav-copy">
+                <strong>Home</strong>
+                <small>Platform health and summary</small>
+              </span>
+            </a>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group-label">Sections</p>
+            <button class="tab-button active" data-tab="repositories" type="button">
+              <span class="nav-icon">R</span>
+              <span class="nav-copy">
+                <strong>Repositories</strong>
+                <small>Registration and verification</small>
+              </span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group-label">Operations</p>
+            <button class="tab-button" data-tab="queue" type="button">
+              <span class="nav-icon">Q</span>
+              <span class="nav-copy">
+                <strong>Queue</strong>
+                <small>Priority scheduling and activity</small>
+              </span>
+            </button>
+            <button class="tab-button" data-tab="jobs" type="button">
+              <span class="nav-icon">J</span>
+              <span class="nav-copy">
+                <strong>Jobs</strong>
+                <small>Execution history and logs</small>
+              </span>
+            </button>
+            <button class="tab-button" data-tab="workers" type="button">
+              <span class="nav-icon">W</span>
+              <span class="nav-copy">
+                <strong>Workers</strong>
+                <small>Capacity and throughput</small>
+              </span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group-label">Traffic</p>
+            <button class="tab-button" data-tab="simulation" type="button">
+              <span class="nav-icon">S</span>
+              <span class="nav-copy">
+                <strong>Simulation</strong>
+                <small>Finals workload coverage</small>
+              </span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
           <div class="live-banner">
             <span class="live-dot"></span>
             <span id="autoRefreshLabel">Live refresh every 4s</span>
           </div>
-          <div class="hero-metrics">
-            <div class="metric-card">
-              <span class="metric-label">System Health</span>
-              <strong id="heroHealthStatus">Checking...</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Repositories</span>
-              <strong id="heroRepositoryCount">0</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Verified Repos</span>
-              <strong id="heroVerifiedRepositoryCount">0</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Tracked Jobs</span>
-              <strong id="heroJobCount">0</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Workers Online</span>
-              <strong id="heroWorkerCount">0</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Queued Jobs</span>
-              <strong id="heroQueuedJobCount">0</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="dashboard-section" id="dashboard">
-        <div class="section-header">
-          <div>
-            <p class="eyebrow">Control Panel</p>
-            <h2>Master Dashboard</h2>
-          </div>
-          <p class="section-description">
-            Add repositories to Relay, trust them through verification, inspect the live queue, and
-            monitor worker activity without leaving the website.
+          <p class="sidebar-note">
+            Relay keeps queue ordering deterministic, webhook-driven, and branch-aware.
           </p>
         </div>
+      </aside>
 
-        <div class="tab-strip">
-          <button class="tab-button active" data-tab="repositories">Repositories</button>
-          <button class="tab-button" data-tab="queue">Queue</button>
-          <button class="tab-button" data-tab="jobs">Jobs</button>
-          <button class="tab-button" data-tab="workers">Workers</button>
-          <button class="tab-button" data-tab="simulation">Simulation</button>
-        </div>
-
+      <main class="main-shell">
         <div class="flash-message" id="flashMessage" hidden></div>
 
         <div class="tab-panels">
           <section class="tab-panel active" data-panel="repositories">
+            <div class="panel-intro">
+              <div>
+                <p class="eyebrow">Repositories</p>
+                <h3>Source Registry</h3>
+              </div>
+              <p class="panel-caption">
+                Register active repositories, define tracked branches, and validate pipeline readiness before CI traffic begins.
+              </p>
+            </div>
+
             <div class="repo-layout">
               <div class="panel-card intake-card">
                 <div class="panel-header compact">
                   <div>
-                    <h3>Register Repository</h3>
-                    <p class="panel-caption">Press Enter or submit to create/update a repo record on the Relay master.</p>
+                    <h4>Register Repository</h4>
+                    <p class="panel-caption">Create or update a source record for Relay to watch and execute.</p>
                   </div>
                 </div>
 
@@ -110,11 +133,7 @@
                   </label>
                   <label>
                     Tracked Branches
-                    <input
-                      name="trackedBranches"
-                      type="text"
-                      placeholder="main, develop"
-                    />
+                    <input name="trackedBranches" type="text" placeholder="main, develop" />
                   </label>
                   <div class="form-split">
                     <label>
@@ -131,8 +150,8 @@
                     <span>Mark repository as active immediately</span>
                   </label>
                   <div class="button-row">
-                    <button class="primary-button" type="submit">Create Or Update</button>
-                    <button class="secondary-button" id="resetRepositoryFormButton" type="button">Reset</button>
+                    <button class="primary-button" type="submit">Save Repository</button>
+                    <button class="secondary-button" id="resetRepositoryFormButton" type="button">Reset Form</button>
                   </div>
                 </form>
               </div>
@@ -140,8 +159,8 @@
               <div class="panel-card registry-card">
                 <div class="panel-header">
                   <div>
-                    <h3>Registered Repositories</h3>
-                    <p class="panel-caption">Verification state is persisted until a repo changes or you clear it manually.</p>
+                    <h4>Registered Repositories</h4>
+                    <p class="panel-caption">Verification state persists until a repo changes or you clear it.</p>
                   </div>
                   <button class="panel-action" id="refreshRepositoriesButton" type="button">Refresh</button>
                 </div>
@@ -151,10 +170,20 @@
           </section>
 
           <section class="tab-panel" data-panel="queue">
+            <div class="panel-intro">
+              <div>
+                <p class="eyebrow">Queue</p>
+                <h3>Dispatch Board</h3>
+              </div>
+              <p class="panel-caption">
+                Review queue pressure, active dispatches, and the exact priority order driving dequeue behavior.
+              </p>
+            </div>
+
             <div class="panel-header">
               <div>
-                <h3>Queue Snapshot</h3>
-                <p class="panel-caption">Auto-refresh keeps queue depth, active workers, and in-flight jobs current.</p>
+                <h4>Queue Snapshot</h4>
+                <p class="panel-caption">Highest priority jobs are selected first, with FIFO tie-breaking.</p>
               </div>
               <button class="panel-action" id="refreshQueueButton" type="button">Refresh</button>
             </div>
@@ -172,16 +201,39 @@
           </section>
 
           <section class="tab-panel" data-panel="jobs">
+            <div class="panel-intro">
+              <div>
+                <p class="eyebrow">Jobs</p>
+                <h3>Execution History</h3>
+              </div>
+              <p class="panel-caption">
+                Inspect historical runs, review logs, and audit how work moved through the system.
+              </p>
+            </div>
+
             <div class="panel-header">
               <div>
-                <h3>Job History</h3>
-                <p class="panel-caption">Inspect logs and watch execution move across the queue in near real time.</p>
+                <h4>Job Timeline</h4>
+                <p class="panel-caption">Select a job to inspect its worker and pipeline log trail.</p>
               </div>
               <button class="panel-action" id="refreshJobsButton" type="button">Refresh</button>
             </div>
             <div class="jobs-layout">
-              <div class="panel-card">
-                <div class="stack-list" id="jobsList"></div>
+              <div class="jobs-column">
+                <div class="panel-card jobs-list-card">
+                  <div class="jobs-panel-header">
+                    <h4>Current Jobs</h4>
+                    <span class="panel-caption">Queued and active work</span>
+                  </div>
+                  <div class="stack-list jobs-scroll-list" id="currentJobsList"></div>
+                </div>
+                <div class="panel-card jobs-list-card">
+                  <div class="jobs-panel-header">
+                    <h4>Processed Jobs</h4>
+                    <span class="panel-caption">Completed and failed history</span>
+                  </div>
+                  <div class="stack-list jobs-scroll-list" id="processedJobsList"></div>
+                </div>
               </div>
               <div class="panel-card detail-card">
                 <div class="detail-header">
@@ -194,10 +246,20 @@
           </section>
 
           <section class="tab-panel" data-panel="workers">
+            <div class="panel-intro">
+              <div>
+                <p class="eyebrow">Workers</p>
+                <h3>Capacity Overview</h3>
+              </div>
+              <p class="panel-caption">
+                See worker availability, language support, current assignments, and execution throughput.
+              </p>
+            </div>
+
             <div class="panel-header">
               <div>
-                <h3>Worker Pool</h3>
-                <p class="panel-caption">See who is busy, what they can process, and how much work they have already completed.</p>
+                <h4>Worker Pool</h4>
+                <p class="panel-caption">Worker assignment stays language-aware and load-sensitive.</p>
               </div>
               <button class="panel-action" id="refreshWorkersButton" type="button">Refresh</button>
             </div>
@@ -205,16 +267,26 @@
           </section>
 
           <section class="tab-panel" data-panel="simulation">
+            <div class="panel-intro">
+              <div>
+                <p class="eyebrow">Simulation</p>
+                <h3>Coverage and Traffic</h3>
+              </div>
+              <p class="panel-caption">
+                Drive the finals scenario with rotating push traffic across multiple repositories and tracked branches.
+              </p>
+            </div>
+
             <div class="panel-header">
               <div>
-                <h3>Simulation Controls</h3>
-                <p class="panel-caption">Generate workload continuously or in bursts for a demo-friendly control room.</p>
+                <h4>Traffic Generator</h4>
+                <p class="panel-caption">Simulation only starts once the minimum repository and branch coverage is satisfied.</p>
               </div>
               <button class="panel-action" id="refreshSimulationButton" type="button">Refresh</button>
             </div>
             <div class="simulation-layout">
               <div class="panel-card">
-                <h4>Traffic Generator</h4>
+                <h4>Continuous Generation</h4>
                 <form id="simulationStartForm" class="form-stack">
                   <label>
                     Min Delay Seconds
@@ -229,12 +301,9 @@
                     <button class="secondary-button" id="stopSimulationButton" type="button">Stop</button>
                   </div>
                 </form>
-                <p class="panel-caption">
-                  Relay only starts the traffic generator when at least 3 active repositories each expose 2 tracked branches.
-                </p>
               </div>
               <div class="panel-card">
-                <h4>Generate Burst</h4>
+                <h4>Manual Burst</h4>
                 <form id="simulationGenerateForm" class="form-stack">
                   <label>
                     Number of Jobs
@@ -247,7 +316,7 @@
             </div>
           </section>
         </div>
-      </section>
+      </main>
     </div>
 
     <script src="/static/dashboard.js" defer></script>

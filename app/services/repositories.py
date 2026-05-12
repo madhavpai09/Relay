@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import re
+import subprocess
 import uuid
 
 from ..config import DEFAULT_PIPELINE_FILE
@@ -53,6 +55,106 @@ def _validate_local_repository_path(local_path: str) -> dict:
         return {"ok": False, "reason": f"Repository path is not a directory: {absolute_path}"}
 
     return {"ok": True, "absolute_path": str(absolute_path)}
+
+
+def _run_git_command(repository_path: str, args: list[str]) -> dict:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", repository_path, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return {"ok": False, "reason": "git is not installed on this server"}
+    except Exception as error:  # noqa: BLE001
+        return {"ok": False, "reason": f"Failed to run git {' '.join(args)}: {error}"}
+
+    if completed.returncode != 0:
+        stderr = (completed.stderr or "").strip()
+        stdout = (completed.stdout or "").strip()
+        detail = stderr or stdout or f"git {' '.join(args)} failed"
+        return {"ok": False, "reason": detail}
+
+    return {"ok": True, "stdout": (completed.stdout or "").strip()}
+
+
+def _extract_repo_full_name(remote_url: str) -> str | None:
+    normalized = remote_url.strip()
+    if not normalized:
+        return None
+
+    ssh_match = re.search(r"[:/]([^/:]+/[^/]+?)(?:\.git)?$", normalized)
+    if not ssh_match:
+        return None
+
+    return ssh_match.group(1)
+
+
+def _validate_git_repository(repository: dict) -> dict:
+    repository_path = repository["localPath"]
+
+    git_dir_check = _run_git_command(repository_path, ["rev-parse", "--git-dir"])
+    if not git_dir_check["ok"]:
+        return {"ok": False, "reason": f"Repository path is not a valid git repository: {git_dir_check['reason']}"}
+
+    origin_check = _run_git_command(repository_path, ["remote", "get-url", "origin"])
+    if not origin_check["ok"]:
+        return {"ok": False, "reason": f'Repository is missing an "origin" remote: {origin_check["reason"]}'}
+
+    remote_url = origin_check["stdout"]
+    remote_full_name = _extract_repo_full_name(remote_url)
+    if not remote_full_name:
+        return {
+            "ok": False,
+            "reason": f'Could not determine owner/repo from origin remote "{remote_url}"',
+        }
+
+    expected_full_name = repository["fullName"].strip()
+    if remote_full_name.lower() != expected_full_name.lower():
+        return {
+            "ok": False,
+            "reason": (
+                f'Registered repository "{expected_full_name}" does not match origin remote '
+                f'"{remote_full_name}" ({remote_url})'
+            ),
+        }
+
+    branch_ref_check = _run_git_command(
+        repository_path,
+        ["for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes/origin"],
+    )
+    if not branch_ref_check["ok"]:
+        return {"ok": False, "reason": f"Could not inspect repository branches: {branch_ref_check['reason']}"}
+
+    available_refs = {line.strip() for line in branch_ref_check["stdout"].splitlines() if line.strip()}
+    missing_branches = [
+        branch
+        for branch in repository["trackedBranches"]
+        if branch not in available_refs and f"origin/{branch}" not in available_refs
+    ]
+    if missing_branches:
+        return {
+            "ok": False,
+            "reason": (
+                "Tracked branches are missing from the repository clone: "
+                + ", ".join(missing_branches)
+            ),
+        }
+
+    default_branch = repository["defaultBranch"]
+    if default_branch not in available_refs and f"origin/{default_branch}" not in available_refs:
+        return {
+            "ok": False,
+            "reason": f'Default branch "{default_branch}" was not found in local or origin refs',
+        }
+
+    return {
+        "ok": True,
+        "remoteUrl": remote_url,
+        "remoteFullName": remote_full_name,
+        "availableRefs": sorted(available_refs),
+    }
 
 
 def _update_verification_state(
@@ -235,6 +337,17 @@ def validate_repository(repo_id: str) -> dict:
         )
         return path_validation
 
+    git_validation = _validate_git_repository(repository)
+    if not git_validation["ok"]:
+        _update_verification_state(
+            repo_id,
+            verified=False,
+            verification_message=git_validation["reason"],
+            verified_at=None,
+            pipeline_path=None,
+        )
+        return {"ok": False, "reason": git_validation["reason"]}
+
     pipeline_result = load_pipeline_definition(repository["localPath"], repository["pipelineFile"])
     if not pipeline_result["ok"]:
         _update_verification_state(
@@ -255,7 +368,12 @@ def validate_repository(repo_id: str) -> dict:
         repo_id,
         verified=True,
         verified_at=verified_at,
-        verification_message=f"Verified successfully. {len(pipeline_result['pipeline']['steps'])} pipeline steps detected.",
+        verification_message=(
+            "Verified successfully. "
+            f'Git remote matched "{git_validation["remoteFullName"]}", '
+            f"{len(repository['trackedBranches'])} tracked branches were found, and "
+            f"{len(pipeline_result['pipeline']['steps'])} pipeline steps were detected."
+        ),
         pipeline_path=pipeline_result["pipeline_path"],
         language=resolved_language,
     )

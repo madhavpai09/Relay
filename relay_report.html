@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Relay — End-of-Project Report</title>
+<style>
+  :root {
+    --navy: #1F3864;
+    --blue: #2E74B5;
+    --light-blue: #EEF3FA;
+    --text: #1a1a1a;
+    --muted: #555;
+    --bg: #f9fafb;
+    --white: #fff;
+    --border: #d0d7e3;
+    --code-bg: #f2f2f2;
+    --pill-bg: #e8edf5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+  }
+
+  /* ── Layout ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--navy);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 24px 0 40px;
+  }
+
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.15);
+    margin-bottom: 16px;
+  }
+
+  .sidebar-logo .brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 2px; }
+  .sidebar-logo .sub   { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px; }
+
+  .nav-section { padding: 6px 20px; font-size: 10px; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 10px; }
+
+  .nav-item {
+    display: block;
+    padding: 7px 20px;
+    color: rgba(255,255,255,.75);
+    text-decoration: none;
+    font-size: 13px;
+    transition: background .15s, color .15s;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover, .nav-item.active {
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    border-left-color: #4da6ff;
+  }
+  .nav-item.sub { padding-left: 34px; font-size: 12px; }
+
+  main {
+    margin-left: 240px;
+    min-height: 100vh;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    background: linear-gradient(135deg, var(--navy) 0%, #2a4f8a 60%, var(--blue) 100%);
+    color: #fff;
+    padding: 100px 80px 80px;
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .cover .tag { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 16px; }
+  .cover h1 { font-size: 72px; font-weight: 900; letter-spacing: 4px; line-height: 1; }
+  .cover .tagline { font-size: 22px; color: rgba(255,255,255,.7); margin: 12px 0 40px; font-style: italic; }
+  .cover-divider { width: 60px; height: 3px; background: rgba(255,255,255,.4); margin: 32px 0; }
+  .cover-meta { display: flex; gap: 48px; flex-wrap: wrap; }
+  .cover-meta-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,.45); }
+  .cover-meta-item .value { font-size: 15px; color: rgba(255,255,255,.9); margin-top: 2px; font-weight: 600; }
+
+  /* ── Content ── */
+  .content { max-width: 860px; margin: 0 auto; padding: 60px 60px 100px; }
+
+  section { margin-bottom: 56px; }
+
+  h1.section-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy);
+    border-bottom: 3px solid var(--blue);
+    padding-bottom: 10px;
+    margin-bottom: 28px;
+    scroll-margin-top: 24px;
+  }
+
+  h2.sub-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--blue);
+    margin: 32px 0 12px;
+    scroll-margin-top: 24px;
+  }
+
+  h3.sub-sub-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 22px 0 8px;
+  }
+
+  p { margin-bottom: 12px; }
+
+  ul { margin: 8px 0 14px 0; padding-left: 0; list-style: none; }
+  ul li {
+    position: relative;
+    padding: 4px 0 4px 20px;
+    font-size: 13.5px;
+  }
+  ul li::before {
+    content: '•';
+    position: absolute;
+    left: 4px;
+    color: var(--blue);
+    font-weight: 700;
+  }
+
+  code, .code-block {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+  }
+
+  code { padding: 1px 5px; }
+
+  .code-block {
+    display: block;
+    padding: 16px 20px;
+    margin: 14px 0;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.6;
+    color: #1a1a1a;
+  }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0 24px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--navy); color: #fff; }
+  thead th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: .4px; }
+  tbody tr:nth-child(even) { background: var(--light-blue); }
+  tbody tr:nth-child(odd)  { background: var(--white); }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Callout ── */
+  .callout {
+    background: var(--light-blue);
+    border-left: 4px solid var(--blue);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 13.5px;
+  }
+  .callout strong { color: var(--navy); }
+
+  /* ── Status pills ── */
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .pill.critical { background: #fde8e8; color: #b91c1c; }
+  .pill.high     { background: #fef3c7; color: #92400e; }
+  .pill.normal   { background: #d1fae5; color: #065f46; }
+  .pill.low      { background: #e5e7eb; color: #374151; }
+
+  /* ── Lifecycle ── */
+  .lifecycle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 16px 0;
+  }
+  .lifecycle .step {
+    background: var(--navy);
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .lifecycle .arrow { color: var(--blue); font-size: 18px; font-weight: 700; }
+  .lifecycle .step.failed { background: #b91c1c; }
+
+  /* ── Worker cards ── */
+  .workers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin: 16px 0; }
+  .worker-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .worker-card .name { font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 6px; }
+  .worker-card .langs { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+  .worker-card .speed { font-size: 12px; font-weight: 600; color: var(--blue); }
+
+  /* ── Scrollspy active ── */
+  section:target h1.section-title { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">RELAY</div>
+    <div class="sub">Project Report</div>
+  </div>
+
+  <span class="nav-section">Sections</span>
+  <a class="nav-item" href="#exec">Executive Summary</a>
+  <a class="nav-item" href="#arch">System Architecture</a>
+  <a class="nav-item sub" href="#arch-overview">2.1 Overview</a>
+  <a class="nav-item sub" href="#arch-modules">2.2 Modules</a>
+  <a class="nav-item sub" href="#arch-contracts">2.3 Contracts</a>
+  <a class="nav-item sub" href="#arch-data">2.4 Data Model</a>
+  <a class="nav-item" href="#pipeline">Pipeline Design</a>
+  <a class="nav-item sub" href="#pipeline-format">3.1 Format</a>
+  <a class="nav-item sub" href="#pipeline-parsing">3.2 Parsing</a>
+  <a class="nav-item sub" href="#pipeline-exec">3.3 Execution</a>
+  <a class="nav-item" href="#deep">Component Deep Dives</a>
+  <a class="nav-item sub" href="#deep-webhook">4.1 Webhook</a>
+  <a class="nav-item sub" href="#deep-sched">4.2 Scheduler</a>
+  <a class="nav-item sub" href="#deep-workers">4.3 Workers</a>
+  <a class="nav-item sub" href="#deep-runners">4.4 Runners</a>
+  <a class="nav-item sub" href="#deep-dash">4.5 Dashboard</a>
+  <a class="nav-item" href="#failure">Failure Handling</a>
+  <a class="nav-item" href="#scaling">Scaling & Future Work</a>
+  <a class="nav-item" href="#reflect">Reflections</a>
+  <a class="nav-item" href="#appendix">Appendices</a>
+</nav>
+
+<main>
+
+<!-- ── Cover ── -->
+<div class="cover">
+  <div class="tag">Mini-Jenkins DevOps Systems Course</div>
+  <h1>RELAY</h1>
+  <div class="tagline">A Mini-Jenkins CI/CD Engine</div>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <div class="label">Students</div>
+      <div class="value">Madhav Pai &amp; Ashma Avinash</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Team</div>
+      <div class="value">Relay</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Submission</div>
+      <div class="value">May 2026</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Stack</div>
+      <div class="value">Python · FastAPI · SQLite</div>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ── Executive Summary ── -->
+<section id="exec">
+  <h1 class="section-title">Executive Summary</h1>
+
+  <p>Relay is a lightweight, self-hosted Continuous Integration engine built in Python using FastAPI. It ingests GitHub webhook events, validates them cryptographically, and routes them through a priority-aware job queue that dispatches work to a pool of language-specific workers. Each worker executes a project's custom pipeline definition (a minimal YAML DSL called <code>.relay.yml</code>), streams real-time log output to a SQLite-backed store, and surfaces build status through a browser dashboard with 4-second auto-refresh polling.</p>
+
+  <h3 class="sub-sub-title">Key Technical Achievements</h3>
+  <ul>
+    <li><strong>HMAC-SHA256 webhook verification</strong> with constant-time comparison and idempotent delivery deduplication — duplicate GitHub redeliveries are detected via a <code>UNIQUE</code> constraint on <code>delivery_id</code> and returned as <code>status: "duplicate"</code> without creating a new job.</li>
+    <li><strong>Multi-dimensional priority scoring</strong> — push to default branch scores ~290+ (critical), hotfix/release branches ~275+ (high), pull-request synchronise events ~135 (normal), ensuring release-critical builds are never queue-starved by feature-branch churn.</li>
+    <li><strong>Thread-safe scheduler</strong> using <code>threading.RLock</code> and <code>threading.Event</code> that dispatches jobs concurrently across four workers, wakes within 350 ms of a new arrival, and recovers interrupted jobs on restart.</li>
+    <li><strong>Four-worker pool</strong> with per-language affinity (Python, Node, Java/Go, and a universal fallback) load-balanced via composite score with random jitter to prevent hot-worker clustering.</li>
+    <li><strong>Live traffic simulator</strong> generating synthetic webhook payloads on configurable intervals (2–6 s default) for stress-testing without a real SCM integration.</li>
+  </ul>
+
+  <h3 class="sub-sub-title">Architecture Summary</h3>
+  <p>Relay is a <strong>modular monolith</strong> — a single FastAPI process containing six functional modules (Ingress, Queue, Orchestration, Execution, Persistence, Delivery) that communicate via in-process Python calls. Persistence is handled by a single SQLite database with three tables: <code>repositories</code>, <code>jobs</code>, and <code>job_logs</code>.</p>
+
+  <h3 class="sub-sub-title">Top 3 Lessons Learned</h3>
+  <ul>
+    <li><strong>Thread safety at queue boundaries is non-trivial.</strong> The first version used <code>dict.pop()</code> without a lock — two worker threads occasionally claimed the same job simultaneously. Wrapping reservation in <code>RLock</code> eliminated the issue.</li>
+    <li><strong>A priority queue without deduplication creates silent duplicates.</strong> Redelivered GitHub webhooks caused the same commit to be built twice. A single <code>UNIQUE</code> constraint on <code>delivery_id</code> fixed it.</li>
+    <li><strong>Simple polling beats complex push for a first iteration.</strong> An earlier design explored Server-Sent Events; a 4-second fetch interval is simpler, requires no persistent connection management, and is visually indistinguishable from streaming.</li>
+  </ul>
+</section>
+
+<!-- ── System Architecture ── -->
+<section id="arch">
+  <h1 class="section-title">System Architecture</h1>
+
+  <h2 class="sub-title" id="arch-overview">2.1 Architecture Overview</h2>
+  <p>Relay is a modular FastAPI monolith. Rather than deploying separate network services, each functional boundary is a Python module within a single process. This keeps deployment trivially simple (<code>uvicorn main:app</code>) while preserving the logical separation of concerns that would make decomposition feasible in a future iteration.</p>
+
+  <h3 class="sub-sub-title">Technology Stack</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>Language / Framework</th><th>Persistence</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Webhook Ingress</td><td>Python / FastAPI</td><td>SQLite (jobs)</td><td>HMAC-SHA256 validation</td></tr>
+        <tr><td>Event Decider</td><td>Python (pure functions)</td><td>None</td><td>Push + PR filter logic</td></tr>
+        <tr><td>Priority Engine</td><td>Python (pure functions)</td><td>None</td><td>Score computation</td></tr>
+        <tr><td>Job Store</td><td>Python / SQLite</td><td>SQLite (jobs, job_logs)</td><td>CRUD + lifecycle</td></tr>
+        <tr><td>Scheduler</td><td>Python / threading</td><td>None (in-memory)</td><td>Thread-based dispatch loop</td></tr>
+        <tr><td>Worker Pool</td><td>Python / threading</td><td>None (in-memory)</td><td>4 workers, RLock-protected</td></tr>
+        <tr><td>Executor</td><td>Python / subprocess</td><td>SQLite (job_logs)</td><td>Shell command runner</td></tr>
+        <tr><td>Pipeline Parser</td><td>Python (hand-rolled)</td><td>None</td><td>.relay.yml DSL</td></tr>
+        <tr><td>Traffic Simulator</td><td>Python / threading</td><td>SQLite (jobs)</td><td>Synthetic load generation</td></tr>
+        <tr><td>Dashboard</td><td>FastAPI / Jinja2 + Vanilla JS</td><td>Reads SQLite via API</td><td>Auto-refresh, 4 s polling</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sub-title" id="arch-modules">2.2 Module Decomposition</h2>
+
+  <h3 class="sub-sub-title">Webhook Ingress</h3>
+  <ul>
+    <li><strong>Tier:</strong> Ingress</li>
+    <li><strong>Responsibility:</strong> Receive raw HTTP POST from GitHub, validate HMAC signature, normalise payload, hand off to job creation.</li>
+    <li><strong>Inbound:</strong> <code>POST /webhooks/github</code> with headers <code>x-github-event</code>, <code>x-github-delivery</code>, <code>x-hub-signature-256</code> and a JSON body.</li>
+    <li><strong>Returns:</strong> HTTP 202 with <code>{jobId, triggerType, priorityLabel, queueStatus}</code>.</li>
+  </ul>
+
+  <h3 class="sub-sub-title">Event Decider</h3>
+  <ul>
+    <li><strong>Tier:</strong> Ingress. Pure function — no I/O.</li>
+    <li>Accepts: <code>push</code> (all), <code>pull_request</code> with action in <code>{opened, synchronize, reopened}</code>.</li>
+    <li>All other events (<code>ping</code>, <code>release</code>, <code>star</code>, …) return <code>should_create=False</code> with a reason string.</li>
+  </ul>
+
+  <h3 class="sub-sub-title">Priority Engine</h3>
+  <ul>
+    <li><strong>Tier:</strong> Orchestration. Pure function — no I/O.</li>
+    <li>Push scoring: <code>200 + branch_score (10–90) + clamped commit count (max 20) + distinct-author bonus (max 9)</code>.</li>
+    <li>Pull-request scoring: 125–145 based on action — always below push scores.</li>
+    <li>Fallback score: 50 for unknown trigger types.</li>
+  </ul>
+
+  <h3 class="sub-sub-title">Scheduler</h3>
+  <ul>
+    <li><strong>Tier:</strong> Orchestration.</li>
+    <li>Background daemon thread draining the priority queue by matching jobs to available workers.</li>
+    <li>Wake-event mechanism: <code>schedule_job()</code> sets a <code>threading.Event</code>, waking the loop within 350 ms instead of waiting for the 1 s timeout.</li>
+    <li>Startup recovery: marks all <code>assigned</code>/<code>processing</code> jobs as <code>failed</code> before starting the dispatch loop.</li>
+  </ul>
+
+  <h2 class="sub-title" id="arch-contracts">2.3 Interface Contracts</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>Target</th><th>Protocol</th><th>Payload / Return</th></tr></thead>
+      <tbody>
+        <tr><td>GitHub</td><td>POST /webhooks/github</td><td>HTTPS webhook</td><td>JSON push/PR payload + signature headers</td></tr>
+        <tr><td>Webhook Router</td><td>Event Decider</td><td>Python call</td><td>event:str, payload:dict → {should_create, reason}</td></tr>
+        <tr><td>Webhook Router</td><td>Priority Engine</td><td>Python call</td><td>trigger_type, ref, payload → {label, score, reason}</td></tr>
+        <tr><td>Webhook Router</td><td>Job Store</td><td>Python call</td><td>create_job(**kwargs) → job dict</td></tr>
+        <tr><td>Webhook Router</td><td>Scheduler</td><td>Python call</td><td>schedule_job(job_id) → {ok, job}</td></tr>
+        <tr><td>Scheduler</td><td>Worker Pool</td><td>Python call</td><td>reserve_worker_for_job(job) → {ok, worker}</td></tr>
+        <tr><td>Scheduler</td><td>Executor</td><td>Python thread</td><td>run_job(job_id, worker) — daemon thread</td></tr>
+        <tr><td>Executor</td><td>Job Store</td><td>Python call</td><td>add_job_log(job_id, level, message)</td></tr>
+        <tr><td>Dashboard</td><td>All APIs</td><td>HTTP GET/POST</td><td>JSON REST, 4 s polling</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Error contracts: all HTTP endpoints return <code>{detail: string}</code> — 400 bad request, 401 signature failure, 404 missing resource, 202 accepted-but-not-yet-processed.</p>
+
+  <h2 class="sub-title" id="arch-data">2.4 Data Model &amp; Persistence</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Table</th><th>Primary Key</th><th>Notable Columns</th></tr></thead>
+      <tbody>
+        <tr><td><code>repositories</code></td><td>id (UUID)</td><td>full_name (UNIQUE), local_path, default_branch, tracked_branches_json, pipeline_file, language, verified</td></tr>
+        <tr><td><code>jobs</code></td><td>id (UUID)</td><td>delivery_id (UNIQUE), trigger_type, language, priority_score, priority_label, status, created_at, started_at, completed_at, payload_json</td></tr>
+        <tr><td><code>job_logs</code></td><td>id (UUID)</td><td>job_id (FK → jobs), timestamp, level (info/error), message</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-sub-title">Job Lifecycle</h3>
+  <div class="lifecycle">
+    <span class="step">received</span>
+    <span class="arrow">→</span>
+    <span class="step">in_queue</span>
+    <span class="arrow">→</span>
+    <span class="step">assigned</span>
+    <span class="arrow">→</span>
+    <span class="step">processing</span>
+    <span class="arrow">→</span>
+    <span class="step">processed</span>
+    <span class="arrow">→</span>
+    <span class="step">sent</span>
+  </div>
+  <div class="lifecycle" style="margin-top:6px">
+    <span class="step" style="background:#555">any status</span>
+    <span class="arrow">→</span>
+    <span class="step failed">failed</span>
+  </div>
+</section>
+
+<!-- ── Pipeline Design ── -->
+<section id="pipeline">
+  <h1 class="section-title">Pipeline Design (.relay.yml)</h1>
+
+  <h2 class="sub-title" id="pipeline-format">3.1 Pipeline File Structure</h2>
+  <p>Relay defines its own minimal YAML-like DSL stored in <code>.relay.yml</code> at the root of each monitored repository. This was a deliberate trade-off: full Groovy/Jenkins DSL parsing would have consumed the majority of the project timeline, while a simple sequential step runner delivers the core CI value proposition with a fraction of the complexity.</p>
+
+  <pre class="code-block">name: python-api-pipeline
+language: python
+
+steps:
+  - name: Install dependencies
+    command: pip install -r requirements.txt
+
+  - name: Run linter
+    command: flake8 app/
+
+  - name: Run tests
+    command: pytest tests/ -v</pre>
+
+  <h3 class="sub-sub-title">Supported Directives</h3>
+  <ul>
+    <li><strong>name</strong> (top-level): Human-readable pipeline identifier, written to job logs.</li>
+    <li><strong>language</strong>: Optional hint; if omitted the system uses the repository's registered language.</li>
+    <li><strong>steps</strong>: Ordered list of build steps. Each step requires <code>name</code> and <code>command</code>.</li>
+  </ul>
+
+  <h3 class="sub-sub-title">Features intentionally NOT implemented</h3>
+  <ul>
+    <li><strong>Parallel stages</strong> — de-scoped in favour of multi-worker parallelism at the queue level.</li>
+    <li><strong>When conditionals</strong> — branching logic handled at job-creation layer (Event Decider).</li>
+    <li><strong>Post handlers</strong> — job status + log stream serve as the equivalent signal.</li>
+  </ul>
+
+  <h2 class="sub-title" id="pipeline-parsing">3.2 Parsing &amp; Pipeline Loading</h2>
+  <p>The parser (<code>app/services/pipeline.py</code>) is hand-rolled — no external library. A single linear pass over the file:</p>
+  <ul>
+    <li>Lines beginning with <code>#</code> or blank are skipped.</li>
+    <li>Lines before <code>steps:</code> are parsed as top-level key-value pairs (colon delimiter).</li>
+    <li>After <code>steps:</code>, lines beginning with <code>- </code> start a new step; subsequent indented lines are step properties.</li>
+    <li>Quoted values (<code>"..."</code> or <code>'...'</code>) have quotes stripped at parse time.</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Validation rules:</strong> at least one step required · every step needs both <code>name</code> and <code>command</code> · malformed lines (no colon) raise <code>ValueError</code> caught by the executor, which transitions the job to <code>failed</code>.
+  </div>
+
+  <h2 class="sub-title" id="pipeline-exec">3.3 Execution Model</h2>
+  <p>Pipeline execution is <strong>strictly sequential</strong> — steps run one at a time in declaration order.</p>
+  <ul>
+    <li>Executor calls <code>update_job_status(job_id, 'processing')</code> and logs the worker assignment.</li>
+    <li>A simulated startup delay (0.15–0.75 s × <code>speedMultiplier</code>) models real-world container warm-up.</li>
+    <li>For each step: <code>subprocess.Popen</code> launches the command in the workspace directory with <code>shell=True</code>.</li>
+    <li>Two daemon threads capture <code>stdout</code> (level=info) and <code>stderr</code> (level=error) line-by-line and write each to <code>job_logs</code>.</li>
+    <li><code>process.wait()</code> blocks until the child exits; both log threads are joined to avoid lost output.</li>
+    <li>Non-zero exit: log the failure, call <code>update_job_status(job_id, 'failed')</code>, skip remaining steps.</li>
+  </ul>
+</section>
+
+<!-- ── Component Deep Dives ── -->
+<section id="deep">
+  <h1 class="section-title">Component Deep Dives</h1>
+
+  <h2 class="sub-title" id="deep-webhook">4.1 Webhook Listener &amp; Ingress</h2>
+
+  <h3 class="sub-sub-title">HMAC-SHA256 Verification</h3>
+  <p>The <code>_verify_signature</code> helper computes the expected signature:</p>
+  <pre class="code-block">expected = 'sha256=' + hmac.new(SECRET.encode('utf8'), raw_body, hashlib.sha256).hexdigest()</pre>
+  <p>Uses <code>hmac.compare_digest</code> for constant-time comparison, preventing timing-based secret extraction. A length check fires first to reject obviously invalid signatures cheaply.</p>
+
+  <h3 class="sub-sub-title">Idempotency</h3>
+  <p>Before creating a new job, the handler queries <code>get_job_by_delivery_id(delivery_id)</code>. If a job already exists, it returns HTTP 200 with <code>status: "duplicate"</code> and the existing job's ID. The database enforces uniqueness via <code>UNIQUE</code> on <code>jobs.delivery_id</code> — a hard guarantee even under concurrent redeliveries.</p>
+
+  <h3 class="sub-sub-title">Payload Normalisation</h3>
+  <p><code>build_github_job_context(event, payload)</code> normalises push and pull_request payloads into a canonical context dict: <code>repository</code>, <code>trigger_type</code>, <code>ref</code>, <code>commit_sha</code>, <code>pull_request_number</code>, <code>action</code>, <code>base_ref</code>, <code>head_ref</code>. Downstream components never touch the raw payload.</p>
+
+  <h2 class="sub-title" id="deep-sched">4.2 Job Scheduler &amp; Priority Queue</h2>
+
+  <h3 class="sub-sub-title">Priority Scoring</h3>
+  <pre class="code-block">score = 200 + branch_score + min(commit_count, 20) + min(distinct_authors * 3, 9)</pre>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Branch Type</th><th>Score</th><th>Label</th></tr></thead>
+      <tbody>
+        <tr><td>Default branch (main/master)</td><td>90</td><td><span class="pill critical">critical</span></td></tr>
+        <tr><td>hotfix/* or release/*</td><td>75</td><td><span class="pill high">high</span></td></tr>
+        <tr><td>Tracked integration branches</td><td>55</td><td><span class="pill normal">normal</span></td></tr>
+        <tr><td>develop / staging / stage</td><td>45</td><td><span class="pill normal">normal</span></td></tr>
+        <tr><td>Feature / ad-hoc branches</td><td>25</td><td><span class="pill normal">normal</span></td></tr>
+        <tr><td>Pull request (any action)</td><td>125–145</td><td><span class="pill normal">normal</span></td></tr>
+        <tr><td>Unknown trigger type</td><td>50</td><td><span class="pill low">low</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-sub-title">Queue Data Structure</h3>
+  <p>The queue is the <code>jobs</code> table itself. Dequeue is:</p>
+  <pre class="code-block">SELECT ... FROM jobs WHERE status = 'in_queue'
+ORDER BY priority_score DESC, created_at ASC LIMIT 1</pre>
+  <p>A composite index on <code>(status, priority_score DESC, created_at ASC)</code> keeps dequeue O(log n). Jobs are not deleted — they transition status, leaving a durable audit trail.</p>
+
+  <h3 class="sub-sub-title">Startup Recovery</h3>
+  <p><code>_recover_queue_on_startup</code> scans for <code>assigned</code>/<code>processing</code> jobs and marks them <code>failed</code> before the dispatch loop starts — preventing jobs from remaining in a pseudo-running state indefinitely after a server restart.</p>
+
+  <h2 class="sub-title" id="deep-workers">4.3 Worker Pool &amp; Executors</h2>
+
+  <div class="workers-grid">
+    <div class="worker-card">
+      <div class="name">Python Worker 1</div>
+      <div class="langs">python, generic</div>
+      <div class="speed">0.85× speed</div>
+    </div>
+    <div class="worker-card">
+      <div class="name">Python Worker 2</div>
+      <div class="langs">python, generic</div>
+      <div class="speed">1.10× speed</div>
+    </div>
+    <div class="worker-card">
+      <div class="name">Node Worker 1</div>
+      <div class="langs">node, generic</div>
+      <div class="speed">0.95× speed</div>
+    </div>
+    <div class="worker-card">
+      <div class="name">Universal Worker 1</div>
+      <div class="langs">python, node, java, go, generic</div>
+      <div class="speed">1.20× speed</div>
+    </div>
+  </div>
+
+  <h3 class="sub-sub-title">Reservation Algorithm</h3>
+  <ul>
+    <li><strong>Pass 1:</strong> workers whose <code>supportedLanguages</code> contains the job's language and <code>currentJobId</code> is None.</li>
+    <li><strong>Pass 2 (fallback):</strong> if Pass 1 is empty, expand to workers accepting <code>"generic"</code>.</li>
+    <li><strong>Selection:</strong> lowest composite score = <code>jobs_completed + exact_match_penalty + random jitter (0–0.35)</code>.</li>
+  </ul>
+  <p>Random jitter prevents hot-worker clustering when multiple workers share the same <code>jobs_completed</code> count (common at startup).</p>
+
+  <h2 class="sub-title" id="deep-runners">4.4 Multi-Language Build Runners</h2>
+  <p>Runner selection is implicit: worker pool language affinity handles routing. The executor is language-agnostic — it runs whatever shell commands are in <code>.relay.yml</code>. The "runner interface" is the pipeline file itself.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Language</th><th>Install Command</th><th>Test Command</th></tr></thead>
+      <tbody>
+        <tr><td>Python</td><td><code>pip install -r requirements.txt</code></td><td><code>pytest tests/ -v</code></td></tr>
+        <tr><td>Node.js</td><td><code>npm ci</code></td><td><code>npm test</code></td></tr>
+        <tr><td>Java</td><td><code>mvn dependency:resolve</code></td><td><code>mvn test -q</code></td></tr>
+        <tr><td>Go</td><td><code>go mod download</code></td><td><code>go test ./...</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sub-title" id="deep-dash">4.5 Observability &amp; Dashboard</h2>
+  <p>Single HTML page (~255 lines Jinja2) hydrated by a 537-line vanilla JavaScript file. No frontend framework or bundler.</p>
+
+  <h3 class="sub-sub-title">Data Fetching (every 4 s)</h3>
+  <ul>
+    <li><code>GET /health</code> — service status</li>
+    <li><code>GET /repositories</code> — registered repos with verification status</li>
+    <li><code>GET /jobs</code> — full job list with logs and priority metadata</li>
+    <li><code>GET /queue</code> — live queue snapshot (queued, active, worker states)</li>
+    <li><code>GET /workers</code> — worker pool state</li>
+  </ul>
+  <p><strong>XSS prevention:</strong> all user-originated strings pass through <code>escapeHtml()</code> before <code>innerHTML</code> assignment.</p>
+</section>
+
+<!-- ── Failure Handling ── -->
+<section id="failure">
+  <h1 class="section-title">Failure Handling &amp; Reliability</h1>
+
+  <h2 class="sub-title">5.1 Failure Taxonomy</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Category</th><th>Failure Mode</th><th>Detection</th><th>Handling</th></tr></thead>
+      <tbody>
+        <tr><td>Build</td><td>Pipeline step exits non-zero</td><td><code>process.wait()</code> return value</td><td>Log error, set failed, skip remaining steps</td></tr>
+        <tr><td>Build</td><td>Pipeline file missing or unparseable</td><td><code>load_pipeline_definition</code> returns ok=False</td><td>Log error, set failed</td></tr>
+        <tr><td>Infrastructure</td><td>Worker thread exception</td><td><code>try/except</code> in <code>_run_assigned_job</code></td><td>Log error, set failed, release worker</td></tr>
+        <tr><td>Infrastructure</td><td>Server restart mid-job</td><td>Startup scan for assigned/processing</td><td>Mark all failed, re-enter queue on next push</td></tr>
+        <tr><td>Network</td><td>Duplicate webhook redelivery</td><td>UNIQUE on <code>delivery_id</code></td><td>Return 200 status:"duplicate", no new job</td></tr>
+        <tr><td>Network</td><td>Invalid JSON body</td><td><code>request.json()</code> exception</td><td>HTTP 400</td></tr>
+        <tr><td>Network</td><td>Invalid HMAC signature</td><td><code>_verify_signature</code> returns ok=False</td><td>HTTP 401</td></tr>
+        <tr><td>Logical</td><td>Unknown trigger type</td><td>event_decider returns should_create=False</td><td>HTTP 200 status:"ignored"</td></tr>
+        <tr><td>Logical</td><td>No available worker for language</td><td><code>reserve_worker_for_job</code> returns ok=False</td><td>Job stays in_queue; retry on next tick</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sub-title">5.2 Retry &amp; Recovery Mechanisms</h2>
+  <ul>
+    <li><strong>Job retry:</strong> not implemented — CI systems should be deterministic. Automatic retries on build failures would mask genuine test failures.</li>
+    <li><strong>Worker unavailability:</strong> job stays <code>in_queue</code> with priority intact; scheduler retries dispatch within 1 s or immediately when a worker finishes.</li>
+    <li><strong>DB integrity:</strong> all writes use explicit <code>BEGIN/COMMIT</code> transactions with rollback on exception, serialised by <code>threading.RLock</code>.</li>
+  </ul>
+
+  <h2 class="sub-title">5.3 Failure Injection Observations</h2>
+  <ul>
+    <li><strong>Worker crash:</strong> exception caught by <code>_run_assigned_job</code> wrapper → job marked failed, worker released, next queued job dispatched within 350 ms.</li>
+    <li><strong>Duplicate redelivery:</strong> redelivering the same <code>x-github-delivery</code> via curl returned HTTP 200 <code>status:"duplicate"</code>. UNIQUE constraint provided the hard guarantee.</li>
+    <li><strong>Missing pipeline file:</strong> executor logged "Pipeline file not found at …" and transitioned to failed within milliseconds; worker immediately available for the next job.</li>
+    <li><strong>Invalid HMAC:</strong> tampered body consistently returned HTTP 401. No job created.</li>
+  </ul>
+</section>
+
+<!-- ── Scaling ── -->
+<section id="scaling">
+  <h1 class="section-title">Scaling Strategies &amp; Future Work</h1>
+
+  <h2 class="sub-title">6.1 Current Scaling Limits</h2>
+  <ul>
+    <li><strong>Worker concurrency:</strong> hard-coded at 4. Adding a fifth requires modifying <code>WORKER_BLUEPRINTS</code> and restarting.</li>
+    <li><strong>Queue throughput:</strong> SQLite write-lock contention becomes a bottleneck above ~100 webhook events/second.</li>
+    <li><strong>Stateful components:</strong> WorkerPool and Scheduler are in-memory — cannot be replicated across processes.</li>
+    <li><strong>Log storage:</strong> no retention policy; verbose builds can generate thousands of <code>job_logs</code> rows per job.</li>
+    <li><strong>Filesystem:</strong> workspaces are local paths; horizontal scaling would require a shared filesystem or per-job provisioning.</li>
+  </ul>
+
+  <h2 class="sub-title">6.2 Containerisation &amp; Orchestration</h2>
+  <ul>
+    <li><strong>Containerised runners (proposed):</strong> replace <code>Popen(shell=True, …)</code> with <code>docker run --rm -v workspace:/workspace image sh -c command</code>. Pre-pull images once per worker start.</li>
+    <li><strong>Kubernetes model (proposed):</strong> pipeline stages map to K8s Jobs (batch/v1). Scheduler becomes a controller watching a <code>RelayJob</code> Custom Resource. HPA on queue-depth metric triggers scale-up.</li>
+  </ul>
+
+  <h2 class="sub-title">6.3 Feature Roadmap</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Feature</th><th>Why It Matters</th><th>Complexity</th></tr></thead>
+      <tbody>
+        <tr><td>Automatic job retry with backoff</td><td>Transient failures (network blip during <code>pip install</code>) shouldn't require a manual re-push</td><td>Medium</td></tr>
+        <tr><td>Webhook-triggered notifications (Slack/email)</td><td>Developers need build results in the same channel they work in</td><td>Low</td></tr>
+        <tr><td>Build artifact storage &amp; download</td><td>Test coverage reports and binaries need to outlive the job</td><td>Medium</td></tr>
+        <tr><td>Parallel pipeline stages</td><td>Build matrices (test on Python 3.10/3.11/3.12 simultaneously)</td><td>High</td></tr>
+        <tr><td>Pipeline templating / inheritance</td><td>Reduce duplication across all Python services sharing the same pipeline structure</td><td>High</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Prioritisation:</strong> Retry (1) has the highest reliability impact for the least effort. Notifications (2) have the highest DX impact. Parallel stages (4) and templating (5) require significant parser and executor rework and should follow once the reliability foundation is solid.</p>
+</section>
+
+<!-- ── Reflections ── -->
+<section id="reflect">
+  <h1 class="section-title">Reflections &amp; Learnings</h1>
+
+  <h2 class="sub-title">7.1 Technical Growth</h2>
+
+  <h3 class="sub-sub-title">Hardest Component</h3>
+  <p>The <strong>scheduler</strong>. The challenge was not the dispatch logic but the interaction between threading primitives: ensuring the wake event, the RLock, and the stop event composed correctly under all race conditions — particularly "shutdown while a job is dispatching." Several iterations were needed before the lock scope was tight enough to avoid deadlocks while still wide enough to protect invariants.</p>
+
+  <h3 class="sub-sub-title">Design Decision We Would Reverse</h3>
+  <p>The static <code>WORKER_BLUEPRINTS</code> dict. It got us to a working system quickly, but worker capacity cannot change without a code change and restart. We would replace it with a database-backed worker registry allowing workers to self-register via a heartbeat API.</p>
+
+  <h3 class="sub-sub-title">Biggest Surprise</h3>
+  <p>How much complexity lives in the delivery-ID idempotency requirement. GitHub webhook redelivery is not an edge case — it happens whenever GitHub's delivery confirmation times out. Without the <code>UNIQUE</code> constraint, load testing showed that aggressive redelivery could create 3–5× more jobs than actual commits. The fix was one SQL constraint; recognising the need required actually triggering the failure.</p>
+
+  <h3 class="sub-sub-title">From Jenkins User to Builder</h3>
+  <p>Having used Jenkins as a black box, building Relay forced us to reason about every abstraction it hides: how does a push become a queued job? How does a job get matched to an executor? How does subprocess stdout end up in a dashboard log? Each answer is a non-trivial engineering decision that Jenkins makes on your behalf — building it from scratch made those decisions, and their consequences, visible.</p>
+
+  <h2 class="sub-title">7.2 DevOps Philosophy</h2>
+  <p>Building Relay reframed the Dev vs Ops tension as a data-flow problem. Developers own the <code>.relay.yml</code> (what to run); the system owns the when, where, and how. This boundary — a versioned file in the repository rather than a GUI configuration — means the pipeline is reviewed in pull requests and testable locally. That insight is what "pipeline as code" means in practice.</p>
+  <p>The most concrete lesson: <strong>reliability is not a feature you add at the end.</strong> The startup recovery, the idempotency constraint, and the transaction rollbacks were each added in response to a specific failure observed during development. A production CI system cannot afford that discovery process in production.</p>
+
+  <h2 class="sub-title">7.3 Team Dynamics</h2>
+  <p>The system was divided along module boundaries: one team member owned the ingress layer (webhooks, event decider, priority engine), the other owned the execution layer (scheduler, worker pool, executor, pipeline parser). The dashboard and persistence layer were built jointly.</p>
+  <p><strong>Integration challenge:</strong> the interface between scheduler and executor was initially informal. When the executor started returning structured error dicts instead of raising exceptions, the scheduler had to be updated. Defining a formal return contract (<code>{ok: bool, …}</code>) before writing implementations would have prevented this mismatch.</p>
+</section>
+
+<!-- ── Appendices ── -->
+<section id="appendix">
+  <h1 class="section-title">Appendices</h1>
+
+  <h2 class="sub-title">A. Repository Structure</h2>
+  <pre class="code-block">relay/
+├── main.py                     # Uvicorn entry point
+├── requirements.txt            # fastapi, uvicorn, python-dotenv, jinja2
+├── .relay.yml                  # Pipeline definition for Relay itself
+├── app/
+│   ├── config.py               # Environment variable loading
+│   ├── database.py             # SQLite connection, schema, helpers
+│   ├── main.py                 # FastAPI app, router registration, lifespan
+│   ├── schemas.py              # Pydantic request models
+│   ├── routers/
+│   │   ├── webhooks.py         # POST /webhooks/github
+│   │   ├── jobs.py             # GET/PATCH /jobs
+│   │   ├── repositories.py     # GET/POST /repositories
+│   │   ├── workers.py          # GET /workers
+│   │   ├── simulation.py       # POST /simulation/*
+│   │   └── ui.py               # GET / (dashboard HTML)
+│   └── services/
+│       ├── event_decider.py    # Webhook event filter
+│       ├── github_context.py   # Payload normalisation
+│       ├── priority.py         # Priority scoring engine
+│       ├── jobs.py             # Job CRUD + log management
+│       ├── repositories.py     # Repository CRUD + validation
+│       ├── scheduler.py        # Background dispatch loop
+│       ├── workers.py          # Worker pool registry
+│       ├── executor.py         # Subprocess runner + log streaming
+│       ├── pipeline.py         # .relay.yml parser
+│       ├── language.py         # Language inference
+│       └── simulation.py       # Synthetic traffic generator
+├── static/
+│   └── dashboard.js            # ~537 lines, vanilla JS
+└── templates/
+    └── dashboard.html          # ~255 lines, Jinja2 template</pre>
+
+  <h2 class="sub-title">B. API Reference</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td><code>/health</code></td><td>Service liveness check</td></tr>
+        <tr><td><code>GET</code></td><td><code>/queue</code></td><td>Live queue snapshot (queued, active, workers)</td></tr>
+        <tr><td><code>POST</code></td><td><code>/webhooks/github</code></td><td>Receive GitHub webhook → create &amp; schedule job</td></tr>
+        <tr><td><code>GET</code></td><td><code>/repositories</code></td><td>List all registered repositories</td></tr>
+        <tr><td><code>POST</code></td><td><code>/repositories</code></td><td>Register / update a repository</td></tr>
+        <tr><td><code>POST</code></td><td><code>/repositories/{id}/validate</code></td><td>Validate pipeline file against workspace</td></tr>
+        <tr><td><code>GET</code></td><td><code>/jobs</code></td><td>List all jobs with logs and priority metadata</td></tr>
+        <tr><td><code>GET</code></td><td><code>/jobs/{id}</code></td><td>Get single job with full log stream</td></tr>
+        <tr><td><code>PATCH</code></td><td><code>/jobs/{id}/status</code></td><td>Manually update job status</td></tr>
+        <tr><td><code>POST</code></td><td><code>/jobs/{id}/schedule</code></td><td>Move job to priority queue</td></tr>
+        <tr><td><code>GET</code></td><td><code>/workers</code></td><td>List workers and their current state</td></tr>
+        <tr><td><code>POST</code></td><td><code>/simulation/start</code></td><td>Start synthetic traffic generator</td></tr>
+        <tr><td><code>POST</code></td><td><code>/simulation/stop</code></td><td>Stop synthetic traffic generator</td></tr>
+        <tr><td><code>POST</code></td><td><code>/simulation/generate</code></td><td>Generate N jobs immediately</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sub-title">C. Configuration Reference</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>PORT</code></td><td>8000</td><td>TCP port uvicorn listens on</td></tr>
+        <tr><td><code>GITHUB_WEBHOOK_SECRET</code></td><td>(empty)</td><td>HMAC-SHA256 shared secret. Empty = all webhooks rejected.</td></tr>
+        <tr><td><code>DATA_DIR</code></td><td>data/</td><td>Directory for relay.sqlite</td></tr>
+        <tr><td><code>DATABASE_PATH</code></td><td>data/relay.sqlite</td><td>Full path to the SQLite database file</td></tr>
+        <tr><td><code>DEFAULT_PIPELINE_FILE</code></td><td>.relay.yml</td><td>Pipeline filename looked up in each repository workspace</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sub-title">D. Setup &amp; Run Instructions</h2>
+  <pre class="code-block"># 1. Clone and install
+git clone &lt;repo-url&gt; relay &amp;&amp; cd relay
+pip install -r requirements.txt
+
+# 2. Configure
+echo 'GITHUB_WEBHOOK_SECRET=your-secret-here' &gt; .env
+
+# 3. Run
+uvicorn main:app --reload --port 8000
+
+# 4. Open dashboard
+open http://localhost:8000
+
+# Register a repository
+curl -X POST http://localhost:8000/repositories \
+  -H 'Content-Type: application/json' \
+  -d '{"fullName":"org/repo","localPath":"/path/to/repo","defaultBranch":"main"}'</pre>
+</section>
+
+</div><!-- /content -->
+</main>
+
+<script>
+  // Sidebar active state on scroll
+  const navItems = document.querySelectorAll('.nav-item');
+  const sections = document.querySelectorAll('section[id]');
+
+  function onScroll() {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navItems.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+</body>
+</html>

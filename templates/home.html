@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="/static/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">Relay Platform</p>
+          <h1>Relay Master</h1>
+          <p class="brand-copy">
+            CI orchestration for repositories, queues, workers, and live webhook traffic.
+          </p>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Primary">
+          <div class="nav-group">
+            <p class="nav-group-label">Navigation</p>
+            <a class="tab-link active" href="/">
+              <span class="nav-icon">O</span>
+              <span class="nav-copy">
+                <strong>Home</strong>
+                <small>Platform health and entry points</small>
+              </span>
+            </a>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group-label">Sections</p>
+            <a class="tab-link" href="/control?tab=repositories">
+              <span class="nav-icon">R</span>
+              <span class="nav-copy">
+                <strong>Repositories</strong>
+                <small>Registration and verification</small>
+              </span>
+            </a>
+            <a class="tab-link" href="/control?tab=queue">
+              <span class="nav-icon">Q</span>
+              <span class="nav-copy">
+                <strong>Queue</strong>
+                <small>Priority scheduling and activity</small>
+              </span>
+            </a>
+            <a class="tab-link" href="/control?tab=jobs">
+              <span class="nav-icon">J</span>
+              <span class="nav-copy">
+                <strong>Jobs</strong>
+                <small>Execution history and logs</small>
+              </span>
+            </a>
+            <a class="tab-link" href="/control?tab=workers">
+              <span class="nav-icon">W</span>
+              <span class="nav-copy">
+                <strong>Workers</strong>
+                <small>Capacity and throughput</small>
+              </span>
+            </a>
+            <a class="tab-link" href="/control?tab=simulation">
+              <span class="nav-icon">S</span>
+              <span class="nav-copy">
+                <strong>Simulation</strong>
+                <small>Finals workload coverage</small>
+              </span>
+            </a>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="live-banner">
+            <span class="live-dot"></span>
+            <span id="autoRefreshLabel">Live refresh every 4s</span>
+          </div>
+          <p class="sidebar-note">
+            Use Overview for visibility and open Control Panel only when you need to operate the system.
+          </p>
+        </div>
+      </aside>
+
+      <main class="main-shell">
+        <header class="topbar">
+          <div class="topbar-copy">
+            <p class="eyebrow">Overview</p>
+            <h2>Relay Overview</h2>
+            <p class="section-description">
+              Keep the top-level dashboard calm and high-signal. Open the control surface only when you want to register repositories, inspect logs, or drive simulation traffic.
+            </p>
+          </div>
+          <div class="topbar-actions">
+            <div class="command-card">
+              <span class="metric-label">System Health</span>
+              <strong id="heroHealthStatus">Checking...</strong>
+            </div>
+            <a class="primary-button" href="/control">Open Control Panel</a>
+          </div>
+        </header>
+
+        <section class="overview-grid">
+          <article class="metric-card emphasis-card">
+            <span class="metric-label">Registered Repositories</span>
+            <strong id="heroRepositoryCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Verified Repositories</span>
+            <strong id="heroVerifiedRepositoryCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Tracked Jobs</span>
+            <strong id="heroJobCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Workers Online</span>
+            <strong id="heroWorkerCount">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Queued Jobs</span>
+            <strong id="heroQueuedJobCount">0</strong>
+          </article>
+          <article class="metric-card accent-card">
+            <span class="metric-label">Command Surface</span>
+            <strong>Separated</strong>
+          </article>
+        </section>
+
+        <section class="overview-panels">
+          <article class="panel-card overview-feature">
+            <div class="panel-intro compact-intro">
+              <div>
+                <p class="eyebrow">Control Panel</p>
+                <h3>Operational Workspace</h3>
+              </div>
+            </div>
+            <p class="panel-caption">
+              The Control Panel now lives on a separate page, so this dashboard stays cleaner and easier to present.
+            </p>
+            <div class="overview-action-list">
+              <span class="meta-pill">Repository registration</span>
+              <span class="meta-pill">Queue inspection</span>
+              <span class="meta-pill">Job logs</span>
+              <span class="meta-pill">Worker status</span>
+              <span class="meta-pill">Simulation controls</span>
+            </div>
+            <div class="button-row">
+              <a class="primary-button" href="/control">Go To Control Panel</a>
+            </div>
+          </article>
+
+          <article class="panel-card overview-feature">
+            <div class="panel-intro compact-intro">
+              <div>
+                <p class="eyebrow">Status</p>
+                <h3>Live Snapshot</h3>
+              </div>
+            </div>
+            <div class="stack-list" id="overviewStatusList">
+              <div class="empty-state">Loading live system summary...</div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/home.js" defer></script>
+  </body>
+</html>
