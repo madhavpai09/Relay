@@ -22,6 +22,7 @@ with db_lock:
           provider TEXT NOT NULL,
           local_path TEXT NOT NULL,
           default_branch TEXT,
+          tracked_branches_json TEXT,
           pipeline_file TEXT NOT NULL,
           language TEXT,
           active INTEGER NOT NULL,
@@ -50,6 +51,9 @@ with db_lock:
           pipeline_file TEXT,
           assigned_worker_id TEXT,
           assigned_worker_name TEXT,
+          priority_label TEXT,
+          priority_score INTEGER NOT NULL DEFAULT 0,
+          priority_reason TEXT,
           status TEXT NOT NULL,
           created_at TEXT NOT NULL,
           started_at TEXT,
@@ -83,6 +87,7 @@ def _ensure_column(table: str, column: str, definition: str) -> None:
 
 
 with db_lock:
+    _ensure_column("repositories", "tracked_branches_json", "TEXT")
     _ensure_column("repositories", "language", "TEXT")
     _ensure_column("repositories", "verified", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column("repositories", "verified_at", "TEXT")
@@ -91,6 +96,12 @@ with db_lock:
     _ensure_column("jobs", "language", "TEXT")
     _ensure_column("jobs", "assigned_worker_id", "TEXT")
     _ensure_column("jobs", "assigned_worker_name", "TEXT")
+    _ensure_column("jobs", "priority_label", "TEXT")
+    _ensure_column("jobs", "priority_score", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column("jobs", "priority_reason", "TEXT")
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_jobs_queue_priority ON jobs(status, priority_score DESC, created_at ASC)"
+    )
     connection.commit()
 
 

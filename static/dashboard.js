@@ -145,6 +145,7 @@ function renderRepositories(repositories) {
           </div>
           <div class="repo-meta">
             <span class="meta-line"><strong>Branch:</strong> ${escapeHtml(repo.defaultBranch)}</span>
+            <span class="meta-line"><strong>Tracked:</strong> ${escapeHtml((repo.trackedBranches || []).join(", "))}</span>
             <span class="meta-line"><strong>Pipeline:</strong> ${escapeHtml(repo.pipelineFile)}</span>
             <span class="meta-line"><strong>Path:</strong> ${escapeHtml(repo.localPath)}</span>
             <span class="meta-line"><strong>Last Verified:</strong> ${escapeHtml(formatDateTime(repo.verifiedAt))}</span>
@@ -231,7 +232,9 @@ async function loadQueue() {
               <span class="meta-line"><strong>Job:</strong> ${escapeHtml(job.id)}</span>
               <span class="meta-line"><strong>Trigger:</strong> ${escapeHtml(job.triggerType)}</span>
               <span class="meta-line"><strong>Language:</strong> ${escapeHtml(job.language)}</span>
+              <span class="meta-line"><strong>Priority:</strong> ${escapeHtml(job.priorityLabel)} (${escapeHtml(job.priorityScore)})</span>
               <span class="meta-line"><strong>Ref:</strong> ${escapeHtml(formatValue(job.ref))}</span>
+              <span class="meta-line"><strong>Reason:</strong> ${escapeHtml(job.priorityReason)}</span>
               <span class="meta-line"><strong>Queued:</strong> ${escapeHtml(formatDateTime(job.createdAt))}</span>
             </div>
           </article>
@@ -255,6 +258,7 @@ async function loadQueue() {
               <span class="meta-line"><strong>Job:</strong> ${escapeHtml(job.id)}</span>
               <span class="meta-line"><strong>Worker:</strong> ${escapeHtml(formatValue(job.assignedWorkerName))}</span>
               <span class="meta-line"><strong>Language:</strong> ${escapeHtml(job.language)}</span>
+              <span class="meta-line"><strong>Priority:</strong> ${escapeHtml(job.priorityLabel)} (${escapeHtml(job.priorityScore)})</span>
               <span class="meta-line"><strong>Started:</strong> ${escapeHtml(formatDateTime(job.startedAt))}</span>
             </div>
           </article>
@@ -298,6 +302,7 @@ async function loadJobs() {
             <span class="meta-line"><strong>Job:</strong> ${escapeHtml(job.id)}</span>
             <span class="meta-line"><strong>Worker:</strong> ${escapeHtml(formatValue(job.assignedWorkerName))}</span>
             <span class="meta-line"><strong>Commit:</strong> ${escapeHtml(formatValue(job.commitSha))}</span>
+            <span class="meta-line"><strong>Priority:</strong> ${escapeHtml(job.priorityLabel)} (${escapeHtml(job.priorityScore)})</span>
             <span class="meta-line"><strong>Created:</strong> ${escapeHtml(formatDateTime(job.createdAt))}</span>
           </div>
           <div class="meta-pill-row">
@@ -375,10 +380,19 @@ async function loadWorkers() {
 
 async function loadSimulationStatus() {
   const data = await fetchJson("/simulation");
+  const coverage = data.coverage || {};
+  const coverageRepos = (coverage.repositories || [])
+    .map((repo) => `${repo.fullName}: ${(repo.trackedBranches || []).join(", ")}`)
+    .join(" | ");
   elements.simulationStatusCard.innerHTML = `
     <p><strong>Running:</strong> ${escapeHtml(data.running ? "Yes" : "No")}</p>
     <p><strong>Min Delay:</strong> ${escapeHtml(data.minDelaySeconds)}s</p>
     <p><strong>Max Delay:</strong> ${escapeHtml(data.maxDelaySeconds)}s</p>
+    <p><strong>Coverage Ready:</strong> ${escapeHtml(coverage.meetsMinimum ? "Yes" : "No")}</p>
+    <p><strong>Eligible Repositories:</strong> ${escapeHtml(coverage.eligibleRepositoryCount ?? 0)} / ${escapeHtml(coverage.requiredRepositoryCount ?? 3)}</p>
+    <p><strong>Tracked Branches:</strong> ${escapeHtml(coverage.coveredBranchCount ?? 0)} / ${escapeHtml(coverage.requiredBranchCount ?? 6)}</p>
+    <p><strong>Readiness Detail:</strong> ${escapeHtml(data.readinessReason || "Simulation can cover the minimum finals scenario.")}</p>
+    <p><strong>Coverage Plan:</strong> ${escapeHtml(coverageRepos || "Register 3 repos with 2 tracked branches each.")}</p>
   `;
   return data;
 }
@@ -412,6 +426,7 @@ function resetRepositoryForm() {
   elements.repositoryForm.reset();
   elements.repositoryForm.elements.namedItem("provider").value = "github";
   elements.repositoryForm.elements.namedItem("defaultBranch").value = "main";
+  elements.repositoryForm.elements.namedItem("trackedBranches").value = "main, develop";
   elements.repositoryForm.elements.namedItem("pipelineFile").value = ".relay.yml";
   elements.repositoryForm.elements.namedItem("active").checked = true;
 }
@@ -425,6 +440,10 @@ function setupRepositoryForm() {
       provider: String(formData.get("provider") || "github").trim(),
       localPath: String(formData.get("localPath") || "").trim(),
       defaultBranch: String(formData.get("defaultBranch") || "main").trim(),
+      trackedBranches: String(formData.get("trackedBranches") || "")
+        .split(",")
+        .map((branch) => branch.trim())
+        .filter(Boolean),
       pipelineFile: String(formData.get("pipelineFile") || ".relay.yml").trim(),
       language: String(formData.get("language") || "").trim() || null,
       active: formData.get("active") === "on",

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import threading
 
 from .executor import run_job
@@ -8,8 +7,8 @@ from .jobs import (
     add_job_log,
     assign_job_to_worker,
     get_job_by_id,
+    get_next_queued_job,
     list_jobs,
-    list_queued_jobs,
     update_job_status,
 )
 from .workers import worker_pool
@@ -47,11 +46,7 @@ class Scheduler:
             update_job_status(job["id"], "failed")
 
     def _pick_next_queued_job(self) -> dict | None:
-        candidates = list_queued_jobs(limit=3)
-        if not candidates:
-            return None
-        weights = [len(candidates) - index for index in range(len(candidates))]
-        return random.choices(candidates, weights=weights, k=1)[0]
+        return get_next_queued_job()
 
     def _dispatch_available_jobs(self) -> bool:
         dispatched_any = False
@@ -133,7 +128,7 @@ class Scheduler:
         workers = worker_pool.list_workers()
         queued_jobs = sorted(
             [job for job in jobs if job["status"] == "in_queue"],
-            key=lambda job: job["createdAt"],
+            key=lambda job: (-job["priorityScore"], job["createdAt"]),
         )
         active_jobs = [job for job in jobs if job["status"] in {"assigned", "processing"}]
 
@@ -150,6 +145,9 @@ class Scheduler:
                     "repository": job["repository"],
                     "triggerType": job["triggerType"],
                     "language": job["language"],
+                    "priorityLabel": job["priorityLabel"],
+                    "priorityScore": job["priorityScore"],
+                    "priorityReason": job["priorityReason"],
                     "createdAt": job["createdAt"],
                     "ref": job["ref"],
                 }
@@ -161,6 +159,8 @@ class Scheduler:
                     "repository": job["repository"],
                     "triggerType": job["triggerType"],
                     "language": job["language"],
+                    "priorityLabel": job["priorityLabel"],
+                    "priorityScore": job["priorityScore"],
                     "status": job["status"],
                     "assignedWorkerId": job["assignedWorkerId"],
                     "assignedWorkerName": job["assignedWorkerName"],

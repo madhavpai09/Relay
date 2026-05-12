@@ -38,4 +38,8 @@ def simulation_generate(body: SimulationGenerateRequest) -> dict:
             status_code=404 if result["reason"] == "Repository not found" else 400,
             detail=result["reason"],
         )
-    return {"message": "Simulation jobs created", "jobs": result["jobs"]}
+    return {
+        "message": "Simulation jobs created",
+        "jobs": result["jobs"],
+        "coverage": result["coverage"],
+    }

@@ -65,6 +65,9 @@ def _map_job(row) -> dict | None:
         "pipelineFile": row["pipeline_file"],
         "assignedWorkerId": row["assigned_worker_id"],
         "assignedWorkerName": row["assigned_worker_name"],
+        "priorityLabel": row["priority_label"] or "low",
+        "priorityScore": row["priority_score"] or 0,
+        "priorityReason": row["priority_reason"] or "Priority not computed",
         "status": row["status"],
         "createdAt": row["created_at"],
         "startedAt": row["started_at"],
@@ -97,6 +100,7 @@ _JOB_COLUMNS = """
     id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
     pull_request_number, action, base_ref, head_ref, workspace_path,
     pipeline_file, assigned_worker_id, assigned_worker_name,
+    priority_label, priority_score, priority_reason,
     status, created_at, started_at, completed_at, payload_json
 """
 
@@ -135,6 +139,9 @@ def create_job(
     head_ref: str | None,
     workspace_path: str,
     pipeline_file: str = DEFAULT_PIPELINE_FILE,
+    priority_label: str = "low",
+    priority_score: int = 0,
+    priority_reason: str = "Priority not computed",
     payload: dict,
 ) -> dict:
     job_id = str(uuid.uuid4())
@@ -150,19 +157,27 @@ def create_job(
                     id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                     pull_request_number, action, base_ref, head_ref, workspace_path,
                     pipeline_file, assigned_worker_id, assigned_worker_name,
+                    priority_label, priority_score, priority_reason,
                     status, created_at, started_at, completed_at, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                     pull_request_number, action, base_ref, head_ref, workspace_path,
-                    pipeline_file, None, None, "received", created_at, None, None, json.dumps(payload),
+                    pipeline_file, None, None, priority_label, priority_score, priority_reason,
+                    "received", created_at, None, None, json.dumps(payload),
                 ),
             )
             _insert_log(
                 job_id,
                 level="info",
                 message=f"Job received for {trigger_type} event on {language} lane",
+                timestamp=created_at,
+            )
+            _insert_log(
+                job_id,
+                level="info",
+                message=f"Priority computed as {priority_label} ({priority_score}): {priority_reason}",
                 timestamp=created_at,
             )
             conn.commit()
@@ -265,7 +280,13 @@ def get_job_logs(job_id: str) -> dict:
 
 def get_next_queued_job() -> dict | None:
     row = fetch_one(
-        f"SELECT {_JOB_COLUMNS} FROM jobs WHERE status = 'in_queue' ORDER BY created_at ASC LIMIT 1"
+        f"""
+        SELECT {_JOB_COLUMNS}
+        FROM jobs
+        WHERE status = 'in_queue'
+        ORDER BY priority_score DESC, created_at ASC
+        LIMIT 1
+        """
     )
     return _map_job(row)
 
@@ -274,7 +295,13 @@ def list_queued_jobs(limit: int = 10) -> list[dict]:
     return [
         _map_job(row)
         for row in fetch_all(
-            f"SELECT {_JOB_COLUMNS} FROM jobs WHERE status = 'in_queue' ORDER BY created_at ASC LIMIT ?",
+            f"""
+            SELECT {_JOB_COLUMNS}
+            FROM jobs
+            WHERE status = 'in_queue'
+            ORDER BY priority_score DESC, created_at ASC
+            LIMIT ?
+            """,
             (limit,),
         )
     ]
@@ -301,8 +328,9 @@ def migrate_legacy_json_if_needed() -> None:
                         id, event, delivery_id, repository, trigger_type, language, ref, commit_sha,
                         pull_request_number, action, base_ref, head_ref, workspace_path,
                         pipeline_file, assigned_worker_id, assigned_worker_name,
+                        priority_label, priority_score, priority_reason,
                         status, created_at, started_at, completed_at, payload_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job_id,
@@ -321,6 +349,9 @@ def migrate_legacy_json_if_needed() -> None:
                         legacy_job.get("pipelineFile") or DEFAULT_PIPELINE_FILE,
                         legacy_job.get("assignedWorkerId"),
                         legacy_job.get("assignedWorkerName"),
+                        legacy_job.get("priorityLabel", "low"),
+                        legacy_job.get("priorityScore", 0),
+                        legacy_job.get("priorityReason", "Priority not migrated"),
                         legacy_job.get("status", "received"),
                         legacy_job.get("createdAt") or _now(),
                         legacy_job.get("startedAt"),

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import json
 import uuid
 
 from ..config import DEFAULT_PIPELINE_FILE
@@ -18,12 +19,15 @@ def _map_repository(row) -> dict | None:
     if row is None:
         return None
 
+    tracked_branches = json.loads(row["tracked_branches_json"]) if row["tracked_branches_json"] else None
+
     return {
         "id": row["id"],
         "fullName": row["full_name"],
         "provider": row["provider"],
         "localPath": row["local_path"],
         "defaultBranch": row["default_branch"],
+        "trackedBranches": tracked_branches or _normalize_tracked_branches(row["default_branch"], None),
         "pipelineFile": row["pipeline_file"],
         "language": row["language"] or "generic",
         "active": bool(row["active"]),
@@ -87,8 +91,29 @@ def _update_verification_state(
         conn.commit()
 
 
+def _normalize_tracked_branches(default_branch: str | None, tracked_branches: list[str] | None) -> list[str]:
+    default = (default_branch or "main").strip() or "main"
+    raw_branches = tracked_branches or [default, "develop"]
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for branch in [default, *raw_branches]:
+        cleaned = (branch or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalized.append(cleaned)
+
+    if len(normalized) < 2:
+        fallback = "develop" if default != "develop" else "release-candidate"
+        if fallback not in seen:
+            normalized.append(fallback)
+
+    return normalized
+
+
 _REPO_COLUMNS = """
-    id, full_name, provider, local_path, default_branch, pipeline_file, language,
+    id, full_name, provider, local_path, default_branch, tracked_branches_json, pipeline_file, language,
     active, verified, verified_at, verification_message, last_pipeline_path,
     created_at, updated_at
 """
@@ -121,6 +146,7 @@ def create_or_update_repository(
     provider: str = "github",
     localPath: str,
     defaultBranch: str = "main",
+    trackedBranches: list[str] | None = None,
     pipelineFile: str = DEFAULT_PIPELINE_FILE,
     language: str | None = None,
     active: bool = True,
@@ -143,6 +169,7 @@ def create_or_update_repository(
     )
 
     existing = get_repository_by_full_name(fullName)
+    normalized_tracked_branches = _normalize_tracked_branches(defaultBranch, trackedBranches)
     now = _now()
     repo_id = existing["id"] if existing else str(uuid.uuid4())
     created_at = existing["createdAt"] if existing else now
@@ -157,14 +184,15 @@ def create_or_update_repository(
         conn.execute(
             """
             INSERT INTO repositories (
-                id, full_name, provider, local_path, default_branch, pipeline_file, language,
+                id, full_name, provider, local_path, default_branch, tracked_branches_json, pipeline_file, language,
                 active, verified, verified_at, verification_message, last_pipeline_path,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(full_name) DO UPDATE SET
                 provider = excluded.provider,
                 local_path = excluded.local_path,
                 default_branch = excluded.default_branch,
+                tracked_branches_json = excluded.tracked_branches_json,
                 pipeline_file = excluded.pipeline_file,
                 language = excluded.language,
                 active = excluded.active,
@@ -177,7 +205,7 @@ def create_or_update_repository(
             (
                 repo_id, fullName, provider,
                 path_validation["absolute_path"],
-                defaultBranch, pipelineFile, detected_language,
+                defaultBranch, json.dumps(normalized_tracked_branches), pipelineFile, detected_language,
                 1 if active else 0,
                 0,
                 None,

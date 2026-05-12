@@ -108,6 +108,14 @@
                     Local Path
                     <input name="localPath" type="text" placeholder="/absolute/path/to/local/clone" required />
                   </label>
+                  <label>
+                    Tracked Branches
+                    <input
+                      name="trackedBranches"
+                      type="text"
+                      placeholder="main, develop"
+                    />
+                  </label>
                   <div class="form-split">
                     <label>
                       Pipeline File
@@ -221,6 +229,9 @@
                     <button class="secondary-button" id="stopSimulationButton" type="button">Stop</button>
                   </div>
                 </form>
+                <p class="panel-caption">
+                  Relay only starts the traffic generator when at least 3 active repositories each expose 2 tracked branches.
+                </p>
               </div>
               <div class="panel-card">
                 <h4>Generate Burst</h4>

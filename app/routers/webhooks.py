@@ -11,6 +11,7 @@ from ..services.event_decider import should_create_job
 from ..services.github_context import build_github_job_context
 from ..services.language import infer_repository_language
 from ..services.jobs import create_job, get_job_by_delivery_id
+from ..services.priority import compute_job_priority
 from ..services.repositories import get_repository_by_full_name
 from ..services.scheduler import scheduler
 
@@ -88,6 +89,13 @@ async def github_webhook(request: Request):
             "reason": "This webhook delivery was already processed",
         }
 
+    priority = compute_job_priority(
+        trigger_type=github_context["trigger_type"],
+        ref=github_context["ref"],
+        payload=payload,
+        repository=registered_repository,
+    )
+
     job = create_job(
         event=event or "unknown",
         delivery_id=delivery_id or str(Path.cwd()),
@@ -102,6 +110,9 @@ async def github_webhook(request: Request):
         head_ref=github_context["head_ref"],
         workspace_path=workspace_path,
         pipeline_file=pipeline_file,
+        priority_label=priority["label"],
+        priority_score=priority["score"],
+        priority_reason=priority["reason"],
         payload=payload,
     )
 
@@ -116,6 +127,8 @@ async def github_webhook(request: Request):
         "jobStatus": job["status"],
         "triggerType": job["triggerType"],
         "language": job["language"],
+        "priorityLabel": job["priorityLabel"],
+        "priorityScore": job["priorityScore"],
         "ref": job["ref"],
         "commitSha": job["commitSha"],
         "pullRequestNumber": job["pullRequestNumber"],

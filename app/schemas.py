@@ -8,6 +8,7 @@ class RepositoryCreate(BaseModel):
     provider: str = "github"
     localPath: str
     defaultBranch: str = "main"
+    trackedBranches: list[str] | None = None
     pipelineFile: str = ".relay.yml"
     language: str | None = None
     active: bool = True
