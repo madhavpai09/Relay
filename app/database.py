@@ -25,6 +25,7 @@ with db_lock:
           tracked_branches_json TEXT,
           pipeline_file TEXT NOT NULL,
           language TEXT,
+          webhook_secret TEXT,
           active INTEGER NOT NULL,
           verified INTEGER NOT NULL DEFAULT 0,
           verified_at TEXT,
@@ -89,6 +90,7 @@ def _ensure_column(table: str, column: str, definition: str) -> None:
 with db_lock:
     _ensure_column("repositories", "tracked_branches_json", "TEXT")
     _ensure_column("repositories", "language", "TEXT")
+    _ensure_column("repositories", "webhook_secret", "TEXT")
     _ensure_column("repositories", "verified", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column("repositories", "verified_at", "TEXT")
     _ensure_column("repositories", "verification_message", "TEXT")

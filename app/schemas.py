@@ -11,6 +11,7 @@ class RepositoryCreate(BaseModel):
     trackedBranches: list[str] | None = None
     pipelineFile: str = ".relay.yml"
     language: str | None = None
+    webhookSecret: str | None = None
     active: bool = True
 
 

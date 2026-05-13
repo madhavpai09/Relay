@@ -1,0 +1,6 @@
+name: demo-pipeline
+language: python
+
+steps:
+  - name: Run pipeline
+    command: sleep 5 && echo "job complete"

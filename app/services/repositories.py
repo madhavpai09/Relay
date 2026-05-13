@@ -32,6 +32,8 @@ def _map_repository(row) -> dict | None:
         "trackedBranches": tracked_branches or _normalize_tracked_branches(row["default_branch"], None),
         "pipelineFile": row["pipeline_file"],
         "language": row["language"] or "generic",
+        "hasWebhookSecret": bool(row["webhook_secret"]),
+        "webhookEndpoint": f'/webhooks/github/{row["id"]}',
         "active": bool(row["active"]),
         "verified": bool(row["verified"]),
         "verifiedAt": row["verified_at"],
@@ -195,7 +197,7 @@ def _update_verification_state(
 
 def _normalize_tracked_branches(default_branch: str | None, tracked_branches: list[str] | None) -> list[str]:
     default = (default_branch or "main").strip() or "main"
-    raw_branches = tracked_branches or [default, "develop"]
+    raw_branches = tracked_branches or [default]
     normalized: list[str] = []
     seen: set[str] = set()
 
@@ -206,16 +208,11 @@ def _normalize_tracked_branches(default_branch: str | None, tracked_branches: li
         seen.add(cleaned)
         normalized.append(cleaned)
 
-    if len(normalized) < 2:
-        fallback = "develop" if default != "develop" else "release-candidate"
-        if fallback not in seen:
-            normalized.append(fallback)
-
     return normalized
 
 
 _REPO_COLUMNS = """
-    id, full_name, provider, local_path, default_branch, tracked_branches_json, pipeline_file, language,
+    id, full_name, provider, local_path, default_branch, tracked_branches_json, pipeline_file, language, webhook_secret,
     active, verified, verified_at, verification_message, last_pipeline_path,
     created_at, updated_at
 """
@@ -242,6 +239,13 @@ def get_repository_by_full_name(full_name: str | None) -> dict | None:
     )
 
 
+def get_repository_webhook_secret(repo_id: str) -> str | None:
+    row = fetch_one("SELECT webhook_secret FROM repositories WHERE id = ?", (repo_id,))
+    if row is None:
+        return None
+    return row["webhook_secret"]
+
+
 def create_or_update_repository(
     *,
     fullName: str,
@@ -251,6 +255,7 @@ def create_or_update_repository(
     trackedBranches: list[str] | None = None,
     pipelineFile: str = DEFAULT_PIPELINE_FILE,
     language: str | None = None,
+    webhookSecret: str | None = None,
     active: bool = True,
 ) -> dict:
     if not fullName:
@@ -272,6 +277,7 @@ def create_or_update_repository(
 
     existing = get_repository_by_full_name(fullName)
     normalized_tracked_branches = _normalize_tracked_branches(defaultBranch, trackedBranches)
+    normalized_webhook_secret = (webhookSecret or "").strip() or None
     now = _now()
     repo_id = existing["id"] if existing else str(uuid.uuid4())
     created_at = existing["createdAt"] if existing else now
@@ -287,9 +293,10 @@ def create_or_update_repository(
             """
             INSERT INTO repositories (
                 id, full_name, provider, local_path, default_branch, tracked_branches_json, pipeline_file, language,
+                webhook_secret,
                 active, verified, verified_at, verification_message, last_pipeline_path,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(full_name) DO UPDATE SET
                 provider = excluded.provider,
                 local_path = excluded.local_path,
@@ -297,6 +304,7 @@ def create_or_update_repository(
                 tracked_branches_json = excluded.tracked_branches_json,
                 pipeline_file = excluded.pipeline_file,
                 language = excluded.language,
+                webhook_secret = COALESCE(excluded.webhook_secret, repositories.webhook_secret),
                 active = excluded.active,
                 verified = excluded.verified,
                 verified_at = excluded.verified_at,
@@ -308,6 +316,7 @@ def create_or_update_repository(
                 repo_id, fullName, provider,
                 path_validation["absolute_path"],
                 defaultBranch, json.dumps(normalized_tracked_branches), pipelineFile, detected_language,
+                normalized_webhook_secret,
                 1 if active else 0,
                 0,
                 None,
@@ -325,6 +334,16 @@ def validate_repository(repo_id: str) -> dict:
     repository = get_repository_by_id(repo_id)
     if not repository:
         return {"ok": False, "reason": "Repository not found"}
+
+    if repository["provider"] == "github" and not get_repository_webhook_secret(repo_id):
+        _update_verification_state(
+            repo_id,
+            verified=False,
+            verification_message="Repository is missing a webhook secret. Save one before verification.",
+            verified_at=None,
+            pipeline_path=None,
+        )
+        return {"ok": False, "reason": "Repository is missing a webhook secret. Save one before verification."}
 
     path_validation = _validate_local_repository_path(repository["localPath"])
     if not path_validation["ok"]:

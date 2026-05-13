@@ -2,30 +2,31 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..config import BASE_DIR, GITHUB_WEBHOOK_SECRET
+from ..config import BASE_DIR
 from ..services.event_decider import should_create_job
 from ..services.github_context import build_github_job_context
 from ..services.language import infer_repository_language
 from ..services.jobs import create_job, get_job_by_delivery_id
 from ..services.priority import compute_job_priority
-from ..services.repositories import get_repository_by_full_name
+from ..services.repositories import get_repository_by_full_name, get_repository_webhook_secret
 from ..services.scheduler import scheduler
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-def _verify_signature(raw_body: bytes, signature_header: str | None) -> dict:
-    if not GITHUB_WEBHOOK_SECRET:
-        return {"ok": False, "reason": "Missing webhook secret on server"}
+def _verify_signature(raw_body: bytes, signature_header: str | None, webhook_secret: str | None) -> dict:
+    if not webhook_secret:
+        return {"ok": False, "reason": "No webhook secret configured for this repository"}
     if not signature_header:
         return {"ok": False, "reason": "Missing x-hub-signature-256 header"}
 
     expected_signature = "sha256=" + hmac.new(
-        GITHUB_WEBHOOK_SECRET.encode("utf8"),
+        webhook_secret.encode("utf8"),
         raw_body,
         hashlib.sha256,
     ).hexdigest()
@@ -39,6 +40,14 @@ def _verify_signature(raw_body: bytes, signature_header: str | None) -> dict:
     return {"ok": True}
 
 
+def _resolve_repository(raw_body: bytes) -> dict | None:
+    try:
+        full_name = json.loads(raw_body).get("repository", {}).get("full_name")
+        return get_repository_by_full_name(full_name) if full_name else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @router.post("/github", status_code=202)
 async def github_webhook(request: Request):
     raw_body = await request.body()
@@ -46,12 +55,15 @@ async def github_webhook(request: Request):
     event = request.headers.get("x-github-event")
     delivery_id = request.headers.get("x-github-delivery")
 
-    verification = _verify_signature(raw_body, signature_header)
+    registered_repository = _resolve_repository(raw_body)
+
+    webhook_secret = get_repository_webhook_secret(registered_repository["id"]) if registered_repository else None
+    verification = _verify_signature(raw_body, signature_header, webhook_secret)
     if not verification["ok"]:
         raise HTTPException(status_code=401, detail=verification["reason"])
 
     try:
-        payload = await request.json()
+        payload = json.loads(raw_body)
     except Exception as error:  # noqa: BLE001
         raise HTTPException(status_code=400, detail="Invalid JSON payload") from error
 
@@ -67,7 +79,7 @@ async def github_webhook(request: Request):
         }
 
     github_context = build_github_job_context(event, payload)
-    registered_repository = get_repository_by_full_name(github_context["repository"])
+
     workspace_path = registered_repository["localPath"] if registered_repository else str(BASE_DIR)
     pipeline_file = registered_repository["pipelineFile"] if registered_repository else ".relay.yml"
     language = (

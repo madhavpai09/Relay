@@ -157,6 +157,8 @@ function renderRepositories(repositories) {
             <span class="meta-line"><strong>Branch:</strong> ${escapeHtml(repo.defaultBranch)}</span>
             <span class="meta-line"><strong>Tracked:</strong> ${escapeHtml((repo.trackedBranches || []).join(", "))}</span>
             <span class="meta-line"><strong>Pipeline:</strong> ${escapeHtml(repo.pipelineFile)}</span>
+            <span class="meta-line"><strong>Webhook:</strong> ${escapeHtml(repo.webhookEndpoint || "—")}</span>
+            <span class="meta-line"><strong>Secret Saved:</strong> ${escapeHtml(repo.hasWebhookSecret ? "Yes" : "No")}</span>
             <span class="meta-line"><strong>Path:</strong> ${escapeHtml(repo.localPath)}</span>
             <span class="meta-line"><strong>Last Verified:</strong> ${escapeHtml(formatDateTime(repo.verifiedAt))}</span>
           </div>
@@ -473,7 +475,7 @@ function resetRepositoryForm() {
   elements.repositoryForm.reset();
   elements.repositoryForm.elements.namedItem("provider").value = "github";
   elements.repositoryForm.elements.namedItem("defaultBranch").value = "main";
-  elements.repositoryForm.elements.namedItem("trackedBranches").value = "main, develop";
+  elements.repositoryForm.elements.namedItem("trackedBranches").value = "main";
   elements.repositoryForm.elements.namedItem("pipelineFile").value = ".relay.yml";
   elements.repositoryForm.elements.namedItem("active").checked = true;
 }
@@ -493,6 +495,7 @@ function setupRepositoryForm() {
         .filter(Boolean),
       pipelineFile: String(formData.get("pipelineFile") || ".relay.yml").trim(),
       language: String(formData.get("language") || "").trim() || null,
+      webhookSecret: String(formData.get("webhookSecret") || "").trim() || null,
       active: formData.get("active") === "on",
     };
 

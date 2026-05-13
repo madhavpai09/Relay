@@ -63,8 +63,9 @@ curl -X POST http://localhost:8000/repositories \
     "provider": "github",
     "localPath": "/absolute/path/to/local/clone",
     "defaultBranch": "main",
-    "trackedBranches": ["main", "develop"],
+    "trackedBranches": ["main"],
     "pipelineFile": ".relay.yml",
+    "webhookSecret": "your-github-webhook-secret",
     "active": true
   }'
 ```
@@ -83,6 +84,7 @@ Repository verification now checks all of the following:
 - the `origin` remote matches the registered `owner/repo`
 - the default branch and tracked branches exist in local refs or `origin/*`
 - the configured `.relay.yml` exists and parses successfully
+- a per-repository webhook secret is present for GitHub repositories
 
 ## Pipeline file
 
@@ -109,7 +111,7 @@ steps:
 - `GET /repositories/{id}`
 - `POST /repositories/{id}/validate`
 - `DELETE /repositories/{id}`
-- `POST /webhooks/github`
+- `POST /webhooks/github/{repo_id}`
 - `GET /jobs`
 - `GET /jobs/{id}`
 - `GET /jobs/{id}/logs`
@@ -131,9 +133,11 @@ steps:
 1. Register the local repository clone.
 2. Add `.relay.yml`.
 3. Expose Relay with ngrok.
-4. In GitHub, open `Repository -> Settings -> Webhooks -> Add webhook` and point the payload URL to `https://YOUR-NGROK-DOMAIN/webhooks/github`.
-5. Push code.
-6. Watch `GET /jobs`, `GET /jobs/{id}/logs`, and `GET /workers`.
+4. Save the repository in Relay and copy its generated webhook endpoint from the repository card.
+5. In GitHub, open `Repository -> Settings -> Webhooks -> Add webhook` and point the payload URL to `https://YOUR-NGROK-DOMAIN/webhooks/github/REPOSITORY_ID`.
+6. Use that same repository's `webhookSecret` as the GitHub webhook secret.
+7. Push code.
+8. Watch `GET /jobs`, `GET /jobs/{id}/logs`, and `GET /workers`.
 
 ### Pure simulation flow
 
@@ -179,9 +183,8 @@ The current app is easiest to deploy as a single FastAPI service behind a public
 1. Containerize the app with Python, the Relay codebase, and any build tools your pipelines need.
 2. Deploy it on a VM or container platform such as EC2, Render, Railway, Fly.io, or Kubernetes.
 3. Mount persistent storage for `data/relay.sqlite`, or swap SQLite for Postgres if you want safer multi-instance scaling.
-4. Set `GITHUB_WEBHOOK_SECRET` in the cloud environment.
-5. Put a reverse proxy or load balancer in front of the app so GitHub can reach `POST /webhooks/github`.
-6. Register each target repository in Relay with its local checkout or mounted workspace path and `.relay.yml`.
+4. Put a reverse proxy or load balancer in front of the app so GitHub can reach `POST /webhooks/github/{repo_id}`.
+5. Register each target repository in Relay with its local checkout or mounted workspace path, `.relay.yml`, and its own `webhookSecret`.
 
 For a serious production version, the next upgrade would be:
 
@@ -195,7 +198,7 @@ For a serious production version, the next upgrade would be:
 Known failure cases include:
 
 - GitHub cannot reach the webhook endpoint because ngrok/cloud ingress is down.
-- `GITHUB_WEBHOOK_SECRET` is missing or does not match the secret configured in GitHub.
+- the repository webhook secret is missing or does not match the secret configured in GitHub.
 - the registered repository `localPath` does not exist on the server.
 - the repository is missing `.relay.yml`, or the file contains invalid Relay pipeline syntax.
 - pipeline commands fail because dependencies are missing on the worker host.
@@ -206,7 +209,7 @@ Known failure cases include:
 
 Relay receives GitHub webhook deliveries at:
 
-- `POST /webhooks/github`
+- `POST /webhooks/github/{repo_id}`
 
 Registration itself is not automated inside this project right now. It is configured manually in GitHub here:
 
@@ -214,7 +217,7 @@ Registration itself is not automated inside this project right now. It is config
 
 The exact public payload URL should be:
 
-- `https://YOUR-PUBLIC-HOST/webhooks/github`
+- `https://YOUR-PUBLIC-HOST/webhooks/github/{repo_id}`
 
 When using local development, `YOUR-PUBLIC-HOST` is normally the ngrok HTTPS URL.
 
@@ -225,7 +228,7 @@ ngrok creates a secure public tunnel from the internet to your local FastAPI ser
 1. Relay runs locally on something like `http://localhost:8000`.
 2. ngrok opens a public HTTPS URL and forwards incoming requests to that local port.
 3. GitHub sends webhook events to the ngrok URL.
-4. ngrok forwards the request to Relay's `/webhooks/github` route.
+4. ngrok forwards the request to Relay's `/webhooks/github/{repo_id}` route.
 5. Relay verifies the HMAC signature, computes priority, stores the job, and schedules it.
 
 That means ngrok is only the tunnel. The webhook verification and job creation still happen inside Relay.

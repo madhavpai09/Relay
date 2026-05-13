@@ -83,7 +83,7 @@
             <span id="autoRefreshLabel">Live refresh every 4s</span>
           </div>
           <p class="sidebar-note">
-            Relay keeps queue ordering deterministic, webhook-driven, and branch-aware.
+            Relay Platform
           </p>
         </div>
       </aside>
@@ -133,7 +133,7 @@
                   </label>
                   <label>
                     Tracked Branches
-                    <input name="trackedBranches" type="text" placeholder="main, develop" />
+                    <input name="trackedBranches" type="text" placeholder="main" />
                   </label>
                   <div class="form-split">
                     <label>
@@ -145,6 +145,10 @@
                       <input name="language" type="text" placeholder="optional" />
                     </label>
                   </div>
+                  <label>
+                    Webhook Secret
+                    <input name="webhookSecret" type="text" placeholder="GitHub webhook secret for this repository" />
+                  </label>
                   <label class="checkbox-row">
                     <input name="active" type="checkbox" checked />
                     <span>Mark repository as active immediately</span>
